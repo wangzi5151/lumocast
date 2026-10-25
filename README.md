@@ -56,7 +56,7 @@ LumoCast 把 **A 手机** 变成「信号源」（主机），把 **同一 Wi-Fi
 | **Android** | **`LumoCast-1.0.0.apk`** | 发送端 + 接收端二合一。Android 8.0+。装完即可用 |
 | **iOS / iPadOS** | 自行用 Xcode 构建（`ios/`，见 [docs/BUILD.md](docs/BUILD.md)） | 接收端。iOS 15+。未签名，需 Apple 开发者账号真机安装 |
 | **Windows** | `LumoCast-Setup-1.0.0.exe`<br>`LumoCast-1.0.0-portable.exe` | 接收端。Win 10/11 x64 |
-| **Linux** | `LumoCast-1.0.0.AppImage`<br>`lumocast_1.0.0_amd64.deb`<br>`lumocast-1.0.0.x86_64.rpm` | 接收端。glibc 2.31+ |
+| **Linux** | `LumoCast-1.0.0.AppImage`<br>`lumocast_1.0.0_amd64.deb` | 接收端。AppImage 免安装（`chmod +x` 后直接运行）。glibc 2.31+ |
 | **macOS** | `LumoCast-1.0.0-arm64-mac.zip`<br>`LumoCast-1.0.0-x64-mac.zip` | 接收端。解压后把 .app 拖进「应用程序」。Apple Silicon / Intel |
 
 > 手机端「发送」功能需要 Android（系统级录屏权限所在平台仅 Android 允许第三方直接捕获屏幕）。

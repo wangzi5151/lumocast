@@ -76,14 +76,14 @@ jobs:
 
   # ---------------------------------------------------------------- Linux
   linux:
-    name: Linux AppImage / deb / rpm
+    name: Linux AppImage / deb
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: sudo apt-get update && sudo apt-get install -y rpm fakeroot
+      - run: sudo apt-get update && sudo apt-get install -y fakeroot
       - name: 装配 desktop/web
         run: node scripts/prepare-desktop.mjs
       - name: 安装依赖
@@ -100,7 +100,6 @@ jobs:
           path: |
             desktop/release/*.AppImage
             desktop/release/*.deb
-            desktop/release/*.rpm
           if-no-files-found: warn
 
   # ---------------------------------------------------------------- Windows
@@ -187,7 +186,7 @@ jobs:
             | --- | --- |
             | Android 8.0+ | `LumoCast-*.apk` |
             | Windows 10/11 | `LumoCast-*-x64.exe`（安装版）、`*-portable.exe`（免安装） |
-            | Linux | `*.AppImage`（免安装）、`*.deb`、`*.rpm` |
+            | Linux | `*.AppImage`（免安装，`chmod +x` 直接跑）、`*.deb` |
             | macOS 12+ | `LumoCast-*-arm64-mac.zip`、`*-x64-mac.zip`（解压后拖进「应用程序」） |
 
             > 未做代码签名：Windows 会弹 SmartScreen、macOS 需右键「打开」。
