@@ -45,7 +45,6 @@ Status: **stable** · Applies to Android / iOS / Desktop / any third-party recei
 | --- | --- |
 | `name` | 人类可读设备名，接收端用于列表展示 |
 | `pin` | 是否要求 4 位 PIN（已配对设备可免） |
-| `free` | 主机是否处于免费模式（接收端据此展示 Pro 提示） |
 | `cap` | 能力列表：`h264`、`touch`、`record`、`multi` |
 | `nonce` | 每次会话变化；接收端用它去重与判断「主机是否重启过」 |
 
@@ -70,7 +69,7 @@ Status: **stable** · Applies to Android / iOS / Desktop / any third-party recei
 
 ```json
 { "t": "hello", "v": 1, "role": "viewer", "device": "LumoCast iOS",
-  "pin": "1234", "pair": "aK9f…", "license": null }
+  "pin": "1234", "pair": "aK9f…" }
 ```
 
 | 字段 | 必填 | 说明 |
@@ -78,14 +77,13 @@ Status: **stable** · Applies to Android / iOS / Desktop / any third-party recei
 | `device` | ✅ | 接收端展示名，主机用于「谁在看」列表 |
 | `pin` | 视主机 | 4 位数字；主机 `pin=false` 时忽略 |
 | `pair` | 否 | 上次会话拿到的 `pair` token，可免 PIN（有效期 7 天） |
-| `license` | 否 | Pro license token，用于向主机申请 60fps / 回控等能力 |
 
 2. 主机回一行 JSON + `\n`：
 
 ```json
 { "t": "welcome", "v": 1, "sid": "7b1e0c4a9d2f5583",
   "w": 1080, "h": 2400, "fps": 30, "codec": "avc",
-  "free": true, "pin_required": true, "name": "Pixel 8 Pro",
+  "pin_required": true, "name": "Pixel 8 Pro",
   "pair": "aK9fZm…", "max_fps": 60, "cap": ["h264", "touch"] }
 ```
 
@@ -196,8 +194,8 @@ offset   = host_ms + rtt/2 - localRecvMs      // hostClock ≈ localClock + offs
 | `t` | 附加字段 | 说明 |
 | --- | --- | --- |
 | `kf` | — | 立刻产生 IDR（接收端检测到花屏/首帧时发） |
-| `q` | `br`(bps) `fps` | 请求码率/帧率（主机可拒绝，Pro 才有权申请 60fps） |
-| `in` | `e`:`down`/`move`/`up`/`cancel`, `x`,`y` ∈[0,1] | 触摸回控（需 `cap` 含 `touch` 且 license 有效） |
+| `q` | `br`(bps) `fps` | 请求码率/帧率（主机可拒绝，例如过热时限制） |
+| `in` | `e`:`down`/`move`/`up`/`cancel`, `x`,`y` ∈[0,1] | 触摸回控（需 `cap` 含 `touch`） |
 | `key` | `code`,`down` | 物理键回控：`back` / `home` / `recents` |
 | `stat` | `recv`,`drop`,`rtt`,`dec_ms` | 每秒一次，主机据此做码率自适应 |
 | `bye` | — | 主动断开，主机释放会话 |
@@ -259,7 +257,6 @@ apply every 2s, hysteresis: only change if |Δ| > 15%
 | 同 Wi-Fi 的陌生人偷看 | 4 位 PIN（60s 内最多 5 次尝试，之后 5 分钟冷却）+ 主机端「新的观看请求」提示 |
 | 中间人窃听 | v1 为明文 TCP，**安全边界 = 你信任你家/公司 Wi-Fi**。v2 计划：X25519 + ChaCha20-Poly1305（`cap` 里加 `e2ee`），PIN 参与 PSK |
 | PIN 暴力破解 | 指数退避 + 失败记录写进 `Prefs`，主机会在通知栏提示 |
-| 伪造 license | 离线公钥验签（见 `docs/PRICING.md`），私钥只在发卡服务 |
 | 拒绝服务 | 单机最多 8 个 TCP 连接，超过即拒绝；单帧上限 4 MiB |
 
 > **对外宣传口径必须诚实**：LumoCast v1 是「局域网内明文传输 + PIN 防误连」，

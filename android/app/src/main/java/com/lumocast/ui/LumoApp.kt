@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -16,7 +15,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.lumocast.core.license.License
 import com.lumocast.data.Prefs
 import com.lumocast.ui.components.GradientBackdrop
 
@@ -34,14 +32,8 @@ fun LumoApp(initialViewer: ViewerTarget? = null) {
     val context = LocalContext.current
     val prefs = remember { Prefs.get(context) }
 
-    var licenseToken by remember { mutableStateOf(prefs.licenseToken) }
     var viewerTarget by remember { mutableStateOf(initialViewer) }
 
-    // 每次页面切换重新读一次设置里的 license（用户在设置页激活后立即生效）
-    val entry by nav.currentBackStackEntryAsState()
-    LaunchedEffect(entry) { licenseToken = prefs.licenseToken }
-
-    val entitlement = remember(licenseToken) { License.verify(licenseToken, context) }
     val hostState by com.lumocast.data.LiveSession.host.collectAsState()
 
     GradientBackdrop {
@@ -57,9 +49,7 @@ fun LumoApp(initialViewer: ViewerTarget? = null) {
                             viewerTarget = ViewerTarget(ip, port, pin, name)
                             nav.navigate("viewer") { launchSingleTop = true }
                         },
-                        onOpenSettings = { nav.navigate("settings") { launchSingleTop = true } },
-                        onOpenPro = { nav.navigate("pro") { launchSingleTop = true } },
-                        isPro = entitlement.active
+                        onOpenSettings = { nav.navigate("settings") { launchSingleTop = true } }
                     )
                 }
 
@@ -75,7 +65,6 @@ fun LumoApp(initialViewer: ViewerTarget? = null) {
                             port = target.port,
                             pin = target.pin,
                             name = target.name,
-                            licenseToken = licenseToken,
                             onBack = {
                                 viewerTarget = null
                                 nav.popBackStack()
@@ -89,17 +78,7 @@ fun LumoApp(initialViewer: ViewerTarget? = null) {
                 }
 
                 composable("settings") {
-                    SettingsScreen(
-                        onBack = { nav.popBackStack() },
-                        onOpenPro = { nav.navigate("pro") { launchSingleTop = true } }
-                    )
-                }
-
-                composable("pro") {
-                    PaywallScreen(
-                        onBack = { nav.popBackStack() },
-                        onOpenSettings = { nav.navigate("settings") { launchSingleTop = true } }
-                    )
+                    SettingsScreen(onBack = { nav.popBackStack() })
                 }
             }
         }

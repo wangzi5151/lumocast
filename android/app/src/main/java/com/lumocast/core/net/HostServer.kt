@@ -29,7 +29,6 @@ class HostServer(
     private val deviceName: String,
     private val pinRequired: Boolean,
     val pin: String,
-    private val freeMode: Boolean,
     private val maxFps: Int,
     private val onViewersChanged: (List<ViewerInfo>) -> Unit = {},
     private val onLog: (String) -> Unit = {},
@@ -63,7 +62,7 @@ class HostServer(
 
     val viewerCount: Int get() = clients.size
     private val maxViewers: Int
-        get() = if (freeMode) Proto.MAX_VIEWERS_FREE else Proto.MAX_VIEWERS_PRO
+        get() = Proto.MAX_VIEWERS
 
     // ---------------------------------------------------------------- lifecycle
 
@@ -216,7 +215,7 @@ class HostServer(
 
             // ---- 容量
             if (clients.size >= maxViewers) {
-                reject(socket, "busy", if (freeMode) "免费版同时只能 1 台设备观看" else "观看设备已达上限")
+                reject(socket, "busy", "观看设备已达上限（${Proto.MAX_VIEWERS} 台）")
                 return
             }
 
@@ -234,11 +233,10 @@ class HostServer(
                     append(",\"h\":").append(rotationH.coerceAtLeast(1920))
                     append(",\"fps\":").append(maxFps)
                     append(",\"codec\":\"avc\"")
-                    append(",\"free\":").append(freeMode)
                     append(",\"pin_required\":").append(pinRequired)
                     append(",\"name\":").append(JSONObject.quote(deviceName))
                     append(",\"cap\":[\"h264\",\"audio\",\"av\"")
-                    if (!freeMode) append(",\"touch\",\"record\",\"hd\"")
+                    append(",\"touch\",\"record\",\"hd\"")
                     append("]}")
                 }
             )
@@ -379,7 +377,6 @@ class HostServer(
                 }
 
                 "in" -> {
-                    if (freeMode) return // 回控是 Pro 能力，由主机侧 license 决定
                     val x = o.optDouble("x", 0.0).toFloat()
                     val y = o.optDouble("y", 0.0).toFloat()
                     val action = when (o.optString("e")) {

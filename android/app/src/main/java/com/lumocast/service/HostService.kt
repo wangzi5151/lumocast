@@ -25,7 +25,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.lumocast.MainActivity
 import com.lumocast.R
-import com.lumocast.core.license.License
 import com.lumocast.core.media.AudioCapture
 import com.lumocast.core.media.ScreenEncoder
 import com.lumocast.core.media.ScreenRecorder
@@ -57,7 +56,6 @@ class HostService : Service() {
 
     private val handler = Handler(Looper.getMainLooper())
     private var prefs: Prefs? = null
-    private var entitlement = License.Entitlement.FREE
     private var encWidth = 1080
     private var encHeight = 1920
     private var announced = false
@@ -75,7 +73,6 @@ class HostService : Service() {
 
             ACTION_START -> {
                 prefs = Prefs.get(this)
-                entitlement = License.verify(prefs?.licenseToken, this)
                 startAsForeground()
                 val code = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
                 val data = if (Build.VERSION.SDK_INT >= 33) {
@@ -173,15 +170,13 @@ class HostService : Service() {
 
             val pfx = prefs ?: Prefs.get(this).also { prefs = it }
             val pin = pfx.pin
-            val freeMode = !entitlement.active
-            val fps = if (freeMode) minOf(pfx.maxFps, 30) else pfx.maxFps
+            val fps = pfx.maxFps
             val bitrate = ScreenEncoder.suggestBitrate(encWidth, encHeight, fps)
 
             val srv = HostServer(
                 deviceName = pfx.deviceName,
                 pinRequired = pfx.pinEnabled,
                 pin = pin,
-                freeMode = freeMode,
                 maxFps = fps,
                 onViewersChanged = { infos ->
                     val lite = infos.map { ViewerLite(it.id, it.name, it.ip, it.rttMs) }
@@ -208,7 +203,6 @@ class HostService : Service() {
                     port = port,
                     pin = pin,
                     pinRequired = pfx.pinEnabled,
-                    freeMode = freeMode,
                     fps = fps,
                     bitrateKbps = bitrate / 1000,
                     width = encWidth,
@@ -267,7 +261,7 @@ class HostService : Service() {
                 Log.i(TAG, "RECORD_AUDIO not granted → 静音投屏")
             }
 
-            if (pfx.recordingEnabled && entitlement.active) {
+            if (pfx.recordingEnabled) {
                 val dir = File(cacheDir, "recordings").apply { mkdirs() }
                 recorder = ScreenRecorder(
                     File(dir, "lumocast-${System.currentTimeMillis()}.mp4"), encWidth, encHeight
@@ -284,7 +278,6 @@ class HostService : Service() {
                     put("name", pfx.deviceName)
                     put("port", port)
                     put("pin", pfx.pinEnabled)
-                    put("free", freeMode)
                     put("w", encWidth)
                     put("h", encHeight)
                     put("fps", fps)
@@ -296,7 +289,7 @@ class HostService : Service() {
 
             acquireWifiLock()
             handler.post(adaptRunnable)
-            Log.i(TAG, "hosting on $ip:$port ${encWidth}x$encHeight@$fps free=$freeMode")
+            Log.i(TAG, "hosting on $ip:$port ${encWidth}x$encHeight@$fps")
         } catch (t: Throwable) {
             Log.e(TAG, "begin failed", t)
             LiveSession.update { it.copy(error = t.message ?: "启动失败") }
@@ -312,7 +305,7 @@ class HostService : Service() {
         encWidth = size.first
         encHeight = size.second
         val pfx = prefs ?: return
-        val fps = if (entitlement.active) pfx.maxFps else minOf(pfx.maxFps, 30)
+        val fps = pfx.maxFps
 
         val enc = ScreenEncoder(
             projection = p,
@@ -356,22 +349,16 @@ class HostService : Service() {
         var w = dm.widthPixels
         var h = dm.heightPixels
 
-        // 免费版：短边封顶 1080（并锁 30fps）；Pro：跟随设备，最高 1440p / 长边 2560
+        // 跟随用户设置，最高 1440p / 长边 2560
         val pref = prefs?.maxShortSide ?: 0
-        val cap = if (!entitlement.active) {
-            Proto.FREE_SHORT_SIDE
-        } else if (pref in 1..Proto.MAX_SHORT_SIDE) {
-            pref
-        } else {
-            Proto.MAX_SHORT_SIDE
-        }
+        val cap = if (pref in 1..Proto.MAX_SHORT_SIDE) pref else Proto.MAX_SHORT_SIDE
         val shortSide = minOf(w, h)
         if (shortSide > cap) {
             val scale = cap.toFloat() / shortSide
             w = (w * scale).toInt()
             h = (h * scale).toInt()
         }
-        val longSideCap = if (entitlement.active) Proto.MAX_LONG_SIDE else 2400
+        val longSideCap = Proto.MAX_LONG_SIDE
         if (maxOf(w, h) > longSideCap) {
             val scale = longSideCap.toFloat() / maxOf(w, h)
             w = (w * scale).toInt()
@@ -393,7 +380,7 @@ class HostService : Service() {
                     worstRtt > 250 -> (current * 0.8).toInt()
                     worstRtt in 1..120 -> (current * 1.08).toInt()
                     else -> current
-                }.coerceIn(Proto.BITRATE_MIN, if (entitlement.active) Proto.BITRATE_MAX else Proto.FREE_BITRATE_MAX)
+                }.coerceIn(Proto.BITRATE_MIN, Proto.BITRATE_MAX)
                 if (Math.abs(target - current) > current / 8) {
                     enc.setBitrate(target)
                     LiveSession.update { it.copy(bitrateKbps = target / 1000) }

@@ -58,7 +58,6 @@ fun ViewerScreen(
     port: Int,
     pin: String?,
     name: String,
-    licenseToken: String?,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -67,7 +66,7 @@ fun ViewerScreen(
     var hudVisible by remember { mutableStateOf(true) }
 
     val controller = remember(ip, port, pin, attempt) {
-        ViewerController(ip, port, pin, "LumoCast Android", licenseToken)
+        ViewerController(ip, port, pin, "LumoCast Android")
     }
     val state = controller.state
 
@@ -241,24 +240,6 @@ fun ViewerScreen(
                 }
             }
 
-            // 底部：免费版水印提醒（Pro 无）
-            if (licenseToken == null) {
-                Box(
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 14.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(Color.Black.copy(alpha = 0.45f))
-                        .padding(horizontal = 14.dp, vertical = 7.dp)
-                ) {
-                    Text(
-                        "LumoCast · 免费版 1080p30",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.72f),
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
         }
     }
 }

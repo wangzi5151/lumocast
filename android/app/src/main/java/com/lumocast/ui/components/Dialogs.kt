@@ -131,32 +131,6 @@ fun PinDisplay(pin: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** 顶部小标签：Free / Pro。 */
-@Composable
-fun PlanBadge(isPro: Boolean, modifier: Modifier = Modifier) {
-    val color = if (isPro) LumoMint else Lumo.Subtle
-    Row(
-        modifier
-            .background(color.copy(alpha = 0.14f), RoundedCornerShape(50))
-            .padding(horizontal = 9.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            if (isPro) Icons.Filled.Star
-            else Icons.Filled.Info,
-            contentDescription = null,
-            tint = color,
-            modifier = Modifier.size(12.dp)
-        )
-        Spacer(Modifier.width(4.dp))
-        Text(
-            if (isPro) "PRO" else "FREE",
-            style = MaterialTheme.typography.labelSmall,
-            color = color
-        )
-    }
-}
-
 /** 网络状态点（绿=好，黄=一般，红=差）。 */
 @Composable
 fun QualityDot(rttMs: Int, modifier: Modifier = Modifier) {
@@ -173,21 +147,3 @@ fun QualityDot(rttMs: Int, modifier: Modifier = Modifier) {
     )
 }
 
-/** Pro 引导条：不打扰、可关闭，点击进付费页。 */
-@Composable
-fun ProBanner(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Row(
-        modifier
-            .fillMaxWidth()
-            .background(LumoViolet.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
-            .border(1.dp, LumoViolet.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-            .padding(horizontal = 14.dp, vertical = 12.dp)
-            .then(Modifier),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.Filled.Star, null, tint = LumoViolet, modifier = Modifier.size(16.dp))
-        Spacer(Modifier.width(10.dp))
-        Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        TextButton(onClick = onClick) { Text("升级", style = MaterialTheme.typography.labelLarge) }
-    }
-}

@@ -44,8 +44,7 @@ class ViewerController(
     private val ip: String,
     private val port: Int,
     private val pin: String?,
-    private val deviceName: String,
-    private val licenseToken: String?
+    private val deviceName: String
 ) {
     var state by mutableStateOf(ViewerUiState())
         private set
@@ -130,7 +129,6 @@ class ViewerController(
             port = port,
             pin = pin,
             deviceName = deviceName,
-            licenseToken = licenseToken,
             listener = object : ViewerClient.Listener {
                 override fun onWelcome(welcome: ViewerClient.Welcome) {
                     state = state.copy(

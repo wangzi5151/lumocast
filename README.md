@@ -67,10 +67,11 @@ LumoCast 把 **A 手机** 变成「信号源」（主机），把 **同一 Wi-Fi
 ## 功能
 
 ### 观看体验
-- **1080p / 60fps**（Pro 1440p），硬件编解码（H.264 Baseline/Main），端到端延迟 **60–90ms**
+- **1080p / 60fps**，最高 1440p，硬件编解码（H.264 Baseline/Main），端到端延迟 **60–90ms**
 - **有声音，而且对得上口型**：AAC-LC 48kHz 立体声，采集的是手机正在播放的系统声音（不是麦克风）。
   以音频为主时钟，视频落后 150ms 自动丢帧 —— 宁可掉一帧画面，也不让声音断一下
 - **自适应码率**：每秒看 socket 背压，1.5–24 Mbps 动态调整，弱网自动降分辨率
+- **深色/浅色都看得清**：正文 16sp 起，三级文字也保证 WCAG AA 对比度
 - **秒开**：开机即广播，接收端 2 秒内完成发现，握手到出画面 &lt; 400ms
 - **断线自愈**：Wi-Fi 抖动后自动重连，不退出画面
 - 全屏 / 等比 / 1:1 原始像素、镜像翻转、旋转锁定、画面裁切
@@ -84,32 +85,23 @@ LumoCast 把 **A 手机** 变成「信号源」（主机），把 **同一 Wi-Fi
 - 每会话独立的 `session id`，主机随时可「踢出所有观看者」
 
 ### 进阶
-- **触摸回控**（Pro）：在接收端直接操作发送端手机
-- 多观看者同时观看（Pro：最多 5 台）
-- 录制为 MP4（Pro）、静态截图、低码率省电模式
+- **触摸回控**：在接收端直接操作发送端手机
+- 多观看者同时观看（最多 5 台）
+- 录制为 MP4、静态截图、低码率省电模式
 - 无障碍：超大按钮、TalkBack 全语音标注、深色/浅色/跟随系统
 
 ---
 
-## 商业化
+## 完全免费
 
-LumoCast 采用 **免费增值（Freemium）**，所有核心投屏能力永久免费：
+没有免费版/付费版之分，**所有功能所有人都能用**：
 
-| | Free | Pro（¥48 / 年，¥128 买断） |
-| --- | :-: | :-: |
-| 局域网投屏 | ✅ | ✅ |
-| 分辨率 / 帧率 | 1080p / 30fps | **1080p / 60fps** |
-| 单次时长 | 60 分钟 | 无限制 |
-| 同时观看设备 | 1 | 5 |
-| 触摸回控 | — | ✅ |
-| 录制 MP4 / 截图 | — | ✅ |
-| 角标水印 | 有 | 无 |
-| 商用（门店展示、教学、展台） | — | ✅ |
+- 无广告、无内购、无账号、无试用期倒计时
+- 不限时长、不限设备数、无功能锁、无水印
+- 源码可读（[Source-Available](LICENSE)），可自行编译
 
-技术实现见 [`docs/PRICING.md`](docs/PRICING.md)：离线 **Ed25519/RSA 签名 license**，不需要联网校验，
-一次购买可在同一账号下激活 3 台设备；企业授权走 `LICENSE-COMMERCIAL.md`。
-
----
+为什么免费：这本来就是为了解决「手机投屏要么糊要么收费」而写的工具。
+如果你觉得好用，给个 star 就够了。
 
 ## 技术栈
 
@@ -120,7 +112,6 @@ LumoCast 采用 **免费增值（Freemium）**，所有核心投屏能力永久�
 | `web/` 渲染内核 | 原生 ES Module · **WebCodecs `VideoDecoder`** · Canvas 2D，无框架无打包 |
 | `desktop/` Windows·Linux·macOS | Electron 30 外壳 + Node `net` 负责 TCP，渲染进程只做解码显示 |
 | `ios/` | SwiftUI · `Network.framework` · `VideoToolbox` + `AVSampleBufferDisplayLayer` |
-| `server/`（可选） | Fastify + Stripe Webhook，仅用于签发 license，可完全自托管 |
 | 发现 | UDP 广播 `8738`（JSON），可选 mDNS `_lumocast._tcp` |
 
 协议是 16 字节头 + Annex-B 分片的二进制帧，规则见 [`docs/PROTOCOL.md`](docs/PROTOCOL.md) ——
@@ -159,9 +150,8 @@ android/          Kotlin 客户端（发送端 + 接收端，单 APK 双模式�
 web/              共享渲染内核：协议客户端 + WebCodecs 解码 + UI
 desktop/          Electron 外壳，打包出 Windows / Linux / macOS 安装包
 ios/              SwiftUI 接收端（XcodeGen 工程描述）
-server/           license 签发服务（可选，自托管）
 docs/             架构、协议、构建、定价、隐私、安全、路线图
-scripts/          构建 / 发版 / 生成 license 的脚本
+scripts/          协议测试 / 构建 / 发版脚本
 ```
 
 ## 文档
@@ -169,7 +159,8 @@ scripts/          构建 / 发版 / 生成 license 的脚本
 - [架构与数据流](docs/ARCHITECTURE.md)
 - [协议规范 v1](docs/PROTOCOL.md)
 - [构建与发布](docs/BUILD.md)
-- [商业化方案](docs/PRICING.md)
+- [隐私政策](docs/PRIVACY.md)
+- [更新日志](CHANGELOG.md)
 - [隐私政策](docs/PRIVACY.md) · [安全策略](SECURITY.md) · [路线图](docs/ROADMAP.md)
 
 ## 贡献

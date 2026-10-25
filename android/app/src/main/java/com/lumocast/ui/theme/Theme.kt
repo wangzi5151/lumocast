@@ -14,32 +14,41 @@ import androidx.core.view.WindowCompat
 
 private val DarkScheme = darkColorScheme(
     primary = LumoViolet,
-    onPrimary = Color.White,
+    onPrimary = Color(0xFF14172B),
     primaryContainer = LumoIndigo,
+    onPrimaryContainer = Color(0xFFF4F6FB),
     secondary = LumoMint,
-    onSecondary = Ink900,
+    onSecondary = Color(0xFF12241F),
     tertiary = LumoAmber,
+    onTertiary = Color(0xFF2A2013),
     background = Ink900,
     onBackground = TextPrimary,
     surface = Ink800,
     onSurface = TextPrimary,
     surfaceVariant = Ink700,
     onSurfaceVariant = TextSecondary,
-    outline = Color(0xFF2C3142),
-    error = LumoRed
+    outline = Color(0xFF4A5163),
+    outlineVariant = Color(0xFF3A414F),
+    error = LumoRed,
+    onError = Color(0xFF2B1416)
 )
 
 private val LightScheme = lightColorScheme(
-    primary = LumoIndigo,
+    primary = Color(0xFF5A63D8),
     onPrimary = Color.White,
-    secondary = Color(0xFF00A693),
+    primaryContainer = Color(0xFFE6E8FF),
+    onPrimaryContainer = Color(0xFF232A6B),
+    secondary = Color(0xFF1D9E85),
+    onSecondary = Color.White,
+    tertiary = Color(0xFFB0761F),
     background = LightBg,
     onBackground = LightText,
     surface = LightSurface,
     onSurface = LightText,
-    surfaceVariant = Color(0xFFEDEFF7),
-    onSurfaceVariant = Color(0xFF5B6076),
-    outline = Color(0xFFD8DCEA)
+    surfaceVariant = Color(0xFFEBEEF7),
+    onSurfaceVariant = Color(0xFF4F5669),
+    outline = Color(0xFFCBD1E0),
+    outlineVariant = Color(0xFFDFE3EE)
 )
 
 @Composable
@@ -64,13 +73,14 @@ object Lumo {
     val IsDark: Boolean
         @Composable get() = MaterialTheme.colorScheme.background != LightBg
     val CardBg: Color
-        @Composable get() = if (IsDark) Color.White.copy(alpha = 0.055f) else Color.White
+        @Composable get() = if (IsDark) Color(0xFF2E3441) else Color.White
     val CardBorder: Color
-        @Composable get() = if (IsDark) Color.White.copy(alpha = 0.09f) else Color(0xFFE6E9F3)
+        @Composable get() = if (IsDark) Color.White.copy(alpha = 0.10f) else Color(0xFFE2E6F0)
+    /** 三级文字：深色下达 5.5:1 对比度，浅色下 4.6:1 —— 小字也看得清。 */
     val Subtle: Color
-        @Composable get() = if (IsDark) TextTertiary else Color(0xFF8A90A6)
+        @Composable get() = if (IsDark) TextTertiary else Color(0xFF656D82)
     val Gradient: List<Color>
         @Composable get() = listOf(LumoViolet, LumoBlue)
     val GradientMint: List<Color>
-        @Composable get() = listOf(LumoMint, LumoBlue)
+        @Composable get() = listOf(LumoMint, Color(0xFF7FC6D8))
 }

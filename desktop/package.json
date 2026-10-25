@@ -1,6 +1,6 @@
 {
   "name": "lumocast",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "LumoCast 桌面接收端 —— 把安卓手机的屏幕实时投到你的电脑上（局域网直连，无云端）",
   "main": "main.js",
   "author": {

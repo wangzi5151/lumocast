@@ -338,11 +338,11 @@ el('btn-refresh').addEventListener('click', () => {
 
 el('btn-settings').addEventListener('click', () => {
   alert(
-    'LumoCast 1.0.0\n\n' +
+    'LumoCast 1.1.0\n\n' +
       '· 视频仅在局域网内点对点传输，不经过任何服务器\n' +
       '· 不收集屏幕内容、无账号、无遥测\n' +
-      '· 免费版 1080p30 / 60 分钟 / 1 台设备\n' +
-      '· Pro 解锁 60fps、5 台设备、无水印'
+      '· 完全免费：无广告、无内购、无功能限制\n' +
+      '· 支持 1440p / 60fps、多设备同时观看'
   );
 });
 

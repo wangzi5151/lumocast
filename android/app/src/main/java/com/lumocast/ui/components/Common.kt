@@ -57,8 +57,8 @@ fun GradientBackdrop(content: @Composable BoxScopeContent) {
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        if (Lumo.IsDark) Ink900 else Color(0xFFF6F7FB),
-                        if (Lumo.IsDark) Color(0xFF0E1020) else Color(0xFFEFF1F9)
+                        if (Lumo.IsDark) Color(0xFF262B36) else Color(0xFFF7F8FC),
+                        if (Lumo.IsDark) Color(0xFF1E222B) else Color(0xFFEFF2F9)
                     )
                 )
             )
@@ -66,7 +66,7 @@ fun GradientBackdrop(content: @Composable BoxScopeContent) {
         Box(
             Modifier
                 .size(340.dp)
-                .alpha(if (Lumo.IsDark) 0.30f else 0.18f)
+                .alpha(if (Lumo.IsDark) 0.12f else 0.13f)
                 .background(
                     Brush.radialGradient(listOf(LumoViolet, Color.Transparent)),
                     CircleShape
@@ -76,7 +76,7 @@ fun GradientBackdrop(content: @Composable BoxScopeContent) {
             Modifier
                 .align(Alignment.BottomEnd)
                 .size(300.dp)
-                .alpha(if (Lumo.IsDark) 0.22f else 0.14f)
+                .alpha(if (Lumo.IsDark) 0.09f else 0.10f)
                 .background(Brush.radialGradient(listOf(LumoBlue, Color.Transparent)), CircleShape)
         )
         content()

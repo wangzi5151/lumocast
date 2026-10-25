@@ -38,16 +38,14 @@ object Proto {
     const val PORT_CONTROL_MAX = 8747
     const val PORT_DISCOVERY = 8738
     const val ANNOUNCE_INTERVAL_MS = 2000L
-    const val MAX_VIEWERS_FREE = 1
-    const val MAX_VIEWERS_PRO = 5
+    /** 同时观看设备上限（无付费分层，所有人一样） */
+    const val MAX_VIEWERS = 5
 
-    // ---- 分辨率与码率上限（Pro 可到 1440p / 60fps / 24Mbps）
+    // ---- 分辨率与码率上限
     const val MAX_LONG_SIDE = 2560
     const val MAX_SHORT_SIDE = 1440
-    const val FREE_SHORT_SIDE = 1080
     const val BITRATE_MIN = 1_500_000
     const val BITRATE_MAX = 24_000_000
-    const val FREE_BITRATE_MAX = 8_000_000
 
     // ---- 音频
     const val AUDIO_SAMPLE_RATE = 48_000

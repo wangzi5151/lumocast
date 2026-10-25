@@ -13,7 +13,7 @@ private const val TAG_V = "LumoViewer"
  *
  * 用法（在后台线程调用 connect()，回调都在该线程）：
  * ```
- * val client = ViewerClient(ip, port, pin, "LumoCast Android", license, listener)
+ * val client = ViewerClient(ip, port, pin, "LumoCast Android", listener)
  * client.connect()   // 阻塞直到断开
  * ```
  */
@@ -22,7 +22,6 @@ class ViewerClient(
     private val port: Int,
     private val pin: String?,
     private val deviceName: String,
-    private val licenseToken: String? = null,
     private val listener: Listener
 ) {
 
@@ -81,7 +80,6 @@ class ViewerClient(
                 append("{\"t\":\"hello\",\"v\":").append(Proto.VERSION)
                 append(",\"role\":\"viewer\",\"device\":").append(JSONObject.quote(deviceName))
                 append(",\"pin\":").append(JSONObject.quote(pin ?: ""))
-                if (licenseToken != null) append(",\"license\":").append(JSONObject.quote(licenseToken))
                 append('}')
             }
             writeHandshakeLine(s.getOutputStream(), hello)

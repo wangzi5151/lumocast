@@ -17,11 +17,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,7 +36,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.lumocast.core.license.License
 import com.lumocast.data.Prefs
 import com.lumocast.ui.components.GlassCard
 import com.lumocast.ui.components.GradientButton
@@ -50,7 +47,7 @@ import com.lumocast.ui.theme.LumoRed
 import com.lumocast.ui.theme.LumoViolet
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onOpenPro: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { Prefs.get(context) }
     val uriHandler = LocalUriHandler.current
@@ -59,11 +56,6 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPro: () -> Unit) {
     var pinEnabled by remember { mutableStateOf(prefs.pinEnabled) }
     var maxFps by remember { mutableStateOf(prefs.maxFps) }
     var maxShort by remember { mutableStateOf(prefs.maxShortSide) }
-    var token by remember { mutableStateOf(prefs.licenseToken ?: "") }
-    var activationMsg by remember { mutableStateOf<String?>(null) }
-
-    val entitlement = remember(token) { License.verify(token.ifBlank { null }, context) }
-
     Column(
         Modifier
             .fillMaxWidth()
@@ -82,52 +74,6 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPro: () -> Unit) {
         }
 
         Spacer(Modifier.height(10.dp))
-
-        // ---------------------------------------------------------- 授权状态
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(22.dp))
-                .background(
-                    if (entitlement.active)
-                        Brush.linearGradient(listOf(LumoMint.copy(alpha = 0.22f), LumoBlue.copy(alpha = 0.18f)))
-                    else
-                        Brush.linearGradient(listOf(LumoViolet.copy(alpha = 0.22f), LumoBlue.copy(alpha = 0.16f)))
-                )
-                .clickable { onOpenPro() }
-                .padding(18.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Filled.Star, null,
-                    tint = if (entitlement.active) LumoMint else LumoViolet,
-                    modifier = Modifier.size(22.dp)
-                )
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        if (entitlement.active) "Pro 已激活" else "免费版",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        when {
-                            entitlement.active && entitlement.isLifetime -> "买断授权 · 永久有效"
-                            entitlement.active -> "有效期至 ${
-                                java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-                                    .format(java.util.Date(entitlement.expiryEpochSec * 1000))
-                            }"
-                            else -> "1080p30 · 单设备 · 有水印"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Lumo.Subtle
-                    )
-                }
-                Pill(if (entitlement.active) "PRO" else "升级", color = if (entitlement.active) LumoMint else LumoViolet)
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
 
         // ---------------------------------------------------------- 主机设置
         GlassCard {
@@ -161,7 +107,6 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPro: () -> Unit) {
                 Text("重新生成", style = MaterialTheme.typography.labelLarge, color = LumoViolet,
                     modifier = Modifier.clickable {
                         prefs.pin = (1000..9999).random().toString()
-                        activationMsg = null
                     })
             }
 
@@ -173,7 +118,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPro: () -> Unit) {
                     maxFps = 30
                     prefs.maxFps = 30
                 }
-                SegmentedOption("60 fps", maxFps == 60, enabled = entitlement.active) {
+                SegmentedOption("60 fps", maxFps == 60) {
                     maxFps = 60
                     prefs.maxFps = 60
                 }
@@ -195,14 +140,14 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPro: () -> Unit) {
                     maxShort = 720
                     prefs.maxShortSide = 720
                 }
-                SegmentedOption("1440p", maxShort == 1440, enabled = entitlement.active) {
+                SegmentedOption("1440p", maxShort == 1440) {
                     maxShort = 1440
                     prefs.maxShortSide = 1440
                 }
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                "免费版最高 1080p / 30fps；Pro 可到 1440p / 60fps。降低质量能明显减少发热与耗电。",
+                "所有功能全部开放：最高 1440p / 60fps。画质越高越清晰，但发热和耗电也越明显，日常 1080p 足够。",
                 style = MaterialTheme.typography.labelSmall,
                 color = Lumo.Subtle
             )
@@ -210,57 +155,16 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPro: () -> Unit) {
 
         Spacer(Modifier.height(16.dp))
 
-        // ---------------------------------------------------------- 激活
-        GlassCard {
-            Text("激活 Pro", style = MaterialTheme.typography.titleSmall)
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "把购买邮件里的 license 粘贴到这里，离线验证，不上传任何数据",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Lumo.Subtle
-            )
-            Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = token,
-                onValueChange = { token = it.trim() },
-                label = { Text("LC1.…") },
-                minLines = 2,
-                maxLines = 4,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(10.dp))
-            GradientButton("验证并激活", icon = Icons.Filled.Check) {
-                val ent = License.verify(token.ifBlank { null }, context)
-                if (ent.active) {
-                    prefs.licenseToken = token.ifBlank { null }
-                    activationMsg = "已激活：${ent.plan}"
-                } else {
-                    activationMsg = "license 无效或已过期"
-                }
-            }
-            activationMsg?.let {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (it.startsWith("已激活")) LumoMint else LumoRed
-                )
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
         // ---------------------------------------------------------- 关于
         GlassCard {
-            LinkRow("隐私政策") { uriHandler.openUri("https://github.com/lumocast/lumocast/blob/main/docs/PRIVACY.md") }
-            LinkRow("开源许可与源码") { uriHandler.openUri("https://github.com/lumocast/lumocast") }
-            LinkRow("设备 ID（用于授权绑定）", License.deviceId(context)) {}
-            LinkRow("版本", "1.0.0 (1)") {}
+            LinkRow("隐私政策") { uriHandler.openUri("https://github.com/wangzi5151/lumocast/blob/main/docs/PRIVACY.md") }
+            LinkRow("源码与许可证") { uriHandler.openUri("https://github.com/wangzi5151/lumocast") }
+            LinkRow("版本", "1.1.0 (2)") {}
         }
 
         Spacer(Modifier.height(24.dp))
         Text(
-            "LumoCast 不收集屏幕内容、不上传任何数据。\n视频只在你的局域网内传输。",
+            "LumoCast 完全免费，无广告、无内购、无账号。\n不收集屏幕内容，视频只在你的局域网内传输。",
             style = MaterialTheme.typography.labelSmall,
             color = Lumo.Subtle
         )

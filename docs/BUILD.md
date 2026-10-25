@@ -94,8 +94,7 @@ cp .env.example .env         # 填 STRIPE_SECRET / LICENSE_PRIVATE_KEY / WEBHOOK
 npm start
 ```
 
-只做三件事：Stripe Checkout → Webhook → 用私钥签 license JSON。**不做流媒体中继**，
-所以不需要带宽成本，也能私有化部署。
+
 
 ## 5. 一键全平台
 

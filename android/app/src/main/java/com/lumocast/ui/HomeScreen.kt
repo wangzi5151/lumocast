@@ -62,9 +62,7 @@ import com.lumocast.ui.components.EmptyState
 import com.lumocast.ui.components.GlassCard
 import com.lumocast.ui.components.GradientButton
 import com.lumocast.ui.components.PinDialog
-import com.lumocast.ui.components.PlanBadge
 import com.lumocast.ui.components.Pill
-import com.lumocast.ui.components.ProBanner
 import com.lumocast.ui.components.PulseDot
 import com.lumocast.ui.components.SectionHeader
 import com.lumocast.ui.theme.Lumo
@@ -76,9 +74,7 @@ import com.lumocast.ui.theme.LumoViolet
 fun HomeScreen(
     onOpenHost: () -> Unit,
     onOpenViewer: (ip: String, port: Int, pin: String?, name: String) -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenPro: () -> Unit,
-    isPro: Boolean
+    onOpenSettings: () -> Unit
 ) {
     val context = LocalContext.current
     val prefs = remember { Prefs.get(context) }
@@ -154,8 +150,6 @@ fun HomeScreen(
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(Modifier.width(8.dp))
-                PlanBadge(isPro)
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = onOpenSettings) {
                     Icon(Icons.Filled.Settings, "设置", tint = MaterialTheme.colorScheme.onBackground)
@@ -244,12 +238,6 @@ fun HomeScreen(
                         }
                     }
                 }
-            }
-        }
-
-        if (!isPro) {
-            item {
-                ProBanner("解锁 1080p60、触摸回控与无水印", onOpenPro)
             }
         }
 

@@ -30,10 +30,6 @@ class Prefs private constructor(private val sp: SharedPreferences) {
         get() = sp.getInt(KEY_MAX_SHORT, 0)
         set(v) = sp.edit().putInt(KEY_MAX_SHORT, v).apply()
 
-    var licenseToken: String?
-        get() = sp.getString(KEY_LICENSE, null)
-        set(v) = sp.edit().putString(KEY_LICENSE, v).apply()
-
     var lastHost: String?
         get() = sp.getString(KEY_LAST_HOST, null)
         set(v) = sp.edit().putString(KEY_LAST_HOST, v).apply()
@@ -53,7 +49,6 @@ class Prefs private constructor(private val sp: SharedPreferences) {
         private const val KEY_PIN = "pin"
         private const val KEY_MAX_FPS = "max_fps"
         private const val KEY_MAX_SHORT = "max_short_side"
-        private const val KEY_LICENSE = "license"
         private const val KEY_LAST_HOST = "last_host"
         private const val KEY_RECORD = "record_enabled"
 

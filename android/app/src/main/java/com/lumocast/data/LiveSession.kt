@@ -19,7 +19,6 @@ data class HostState(
     val port: Int = 0,
     val pin: String = "",
     val pinRequired: Boolean = true,
-    val freeMode: Boolean = true,
     val viewers: List<ViewerLite> = emptyList(),
     val fps: Int = 30,
     val bitrateKbps: Int = 0,
