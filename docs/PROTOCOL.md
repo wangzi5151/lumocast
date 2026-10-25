@@ -122,10 +122,11 @@ Status: **stable** · Applies to Android / iOS / Desktop / any third-party recei
 | --- | --- | --- | --- |
 | `1` | `CONFIG` | 主机 → 接收端 | Annex-B：`SPS` 后接 `PPS`（各带 4 字节起始码 `00 00 00 01`） |
 | `2` | `VIDEO` | 主机 → 接收端 | Annex-B：一个或多个 NAL 单元，不带 SPS/PPS |
-| `3` | `AUDIO` | — | 保留（v2：AAC） |
-| `4` | `PING` | 双向 | 8 字节：`seq(uint32)` + `send_ms(uint32)` |
-| `5` | `PONG` | 双向 | 同 PING，原样回填 `seq`，`send_ms` 不动 |
+| `3` | `AUDIO` | 主机 → 接收端 | 裸 AAC 帧（AAC-LC，**不带** ADTS 头；解码参数来自 `AUDIO_CONFIG`） |
+| `4` | `PING` | 接收端 → 主机 | 8 字节：`seq(uint32)` + `send_ms(uint32)` |
+| `5` | `PONG` | 主机 → 接收端 | 8 或 12 字节，见 §2.4 |
 | `6` | `CONTROL` | 双向 | JSON（UTF-8，无换行） |
+| `7` | `AUDIO_CONFIG` | 主机 → 接收端 | `AudioSpecificConfig`（AAC-LC 48k 立体声通常为 `11 90`，2 字节） |
 
 `flags`：
 
@@ -136,8 +137,57 @@ Status: **stable** · Applies to Android / iOS / Desktop / any third-party recei
 | `0x04` | `LAST_RETRANSMIT` / 预留 |
 | 其余 | 必须为 0，接收端忽略未知位 |
 
-`pts_ms`：主机单调时钟毫秒（`SystemClock.elapsedRealtime`）。接收端只用其做抖动统计与显示延迟，
-**不得**用它做绝对时间对齐。
+`pts_ms`：主机单调时钟毫秒（`SystemClock.elapsedRealtime`）。视频与音频**共用同一个时钟源**，
+因此可以直接互相比较 —— 这是音画同步的前提（见 §2.4）。
+
+接收端默认只把它当相对时间用（不需要对齐绝对时间）。若要显示「端到端延迟」或做 AV 同步，
+通过 `PING`/`PONG` 换算出与本机时钟的偏移即可。
+
+### 2.4 音频与音画同步（v1.1 增量）
+
+**为什么音频走同一条 TCP**：分成两条连接时，两条流的内核缓冲、重传时序各自独立，
+实测会出现 100–400ms 的漂移，而且随网络抖动变化 —— 这种「声音慢半拍」比画面掉帧难受得多。
+
+**发送顺序约束**：
+
+1. `CONFIG`（视频参数）→ 2. `AUDIO_CONFIG`（音频参数）→ 3. 之后才可以发 `VIDEO` / `AUDIO`。
+   接收端收到 `AUDIO_CONFIG` 之前到达的 `AUDIO` 包必须丢弃。
+
+**PONG 的 12 字节扩展**：
+
+```
++--------+--------+--------+
+| seq    | send_ms| host_ms|
+| uint32 | uint32 | uint32 |   ← host_ms 是新增的（v1.0 只有前 8 字节）
++--------+--------+--------+
+```
+
+`host_ms` = 主机收到该 PING 时的 `SystemClock.elapsedRealtime()`。接收端这样算偏移：
+
+```
+rtt      = localRecvMs - send_ms
+offset   = host_ms + rtt/2 - localRecvMs      // hostClock ≈ localClock + offset
+```
+
+`offset` 建议做指数平滑（α≈0.15），并且**只用它做同步，不要用它改 pts**。
+
+**同步模型：音频做主时钟（audio-master）**
+
+```
+接收端每秒：
+   audioClock = 「此刻正在听到的音频对应的主机时间」
+   对每个视频帧：
+      if (!keyframe && pts_ms - audioClock < -150)  →  丢弃（已经过时，显示出来只会更晚）
+      else                                          →  送解码器
+```
+
+- `audioClock` 在 Android 上是 `lastPts - (已写入帧数 - AudioTrack.playbackHeadPosition) / 采样率`
+- 在 Web 上是「AudioContext 时间 → 该段音频 pts」的映射，更精确
+- 一旦开始播放音频，**永远让视频追音频**；人耳对音频断续的敏感度（>30ms 即可察觉）远高于
+  对掉一帧的敏感度
+
+**不支持音频的平台**（Android < 10、用户拒绝 `RECORD_AUDIO`）：主机只发视频，
+不设 `AUDIO_CONFIG`，接收端 `audioClock = null` 时不做任何丢帧判断 —— 保证首帧最快。
 
 ### 2.3 CONTROL 消息
 
@@ -221,6 +271,8 @@ apply every 2s, hysteresis: only change if |Δ| > 15%
 
 - `v` 字段为**主版本**。接收端 `v` 小于主机要求时，主机回 `error/unsupported` 并在文案里给出下载链接。
 - 未知 `type` / 未知 `flags` 位 / 未知 CONTROL `t` → **必须忽略**，不得断开。
+- `PONG` 长度 8 → 老主机，不做 AV 同步（仅测 RTT）；长度 12 → v1.1，启用时钟偏移。
+- 收到 `AUDIO` / `AUDIO_CONFIG` 但实现不支持音频 → 静默丢弃，继续放视频。
 - 新增能力一律走 `cap` 数组协商，不做隐式假设。
 
 ## 7. 参考实现

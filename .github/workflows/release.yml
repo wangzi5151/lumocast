@@ -130,7 +130,7 @@ jobs:
 
   # ---------------------------------------------------------------- macOS
   macos:
-    name: macOS dmg
+    name: macOS zip
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -149,7 +149,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: macos-packages
-          path: desktop/release/*.dmg
+          path: desktop/release/*.zip
           if-no-files-found: warn
 
   # ---------------------------------------------------------------- 发布
@@ -188,7 +188,7 @@ jobs:
             | Android 8.0+ | `LumoCast-*.apk` |
             | Windows 10/11 | `LumoCast-*-x64.exe`（安装版）、`*-portable.exe`（免安装） |
             | Linux | `*.AppImage`（免安装）、`*.deb`、`*.rpm` |
-            | macOS 12+ | `LumoCast-*-arm64.dmg`、`*-x64.dmg` |
+            | macOS 12+ | `LumoCast-*-arm64-mac.zip`、`*-x64-mac.zip`（解压后拖进「应用程序」） |
 
             > 未做代码签名：Windows 会弹 SmartScreen、macOS 需右键「打开」。
             > 个人/内部使用完全没问题；正式发行请按 `docs/BUILD.md` 配证书。

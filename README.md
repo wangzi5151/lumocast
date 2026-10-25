@@ -6,14 +6,15 @@
 
 **把一台安卓手机的屏幕，实时投到同局域网里的另一台安卓设备、电脑或 iPhone 上。**
 
-零账号 · 零上传 · 零云服务器 · 延迟 &lt; 80ms · 全平台
+零账号 · 零上传 · 零云服务器 · **画面 + 声音同步** · 延迟 &lt; 80ms · 全平台
 
-[![Release](https://img.shields.io/github/v/release/lumocast/lumocast?include_prereleases&label=release&color=6C5CE7)](../../releases)
-[![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](../../releases)
-[![iOS](https://img.shields.io/badge/iOS-15%2B-000000?logo=apple&logoColor=white)](../../releases)
-[![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows&logoColor=white)](../../releases)
-[![Linux](https://img.shields.io/badge/Linux-x64%20%7C%20arm64-FCC624?logo=linux&logoColor=black)](../../releases)
-[![macOS](https://img.shields.io/badge/macOS-12%2B-000000?logo=apple&logoColor=white)](../../releases)
+[![Release](https://img.shields.io/github/v/release/wangzi5151/lumocast?include_prereleases&label=release&color=6C5CE7)](https://github.com/wangzi5151/lumocast/releases)
+[![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](https://github.com/wangzi5151/lumocast/releases)
+[![iOS](https://img.shields.io/badge/iOS-15%2B-000000?logo=apple&logoColor=white)](https://github.com/wangzi5151/lumocast/releases)
+[![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows&logoColor=white)](https://github.com/wangzi5151/lumocast/releases)
+[![Linux](https://img.shields.io/badge/Linux-x64%20%7C%20arm64-FCC624?logo=linux&logoColor=black)](https://github.com/wangzi5151/lumocast/releases)
+[![macOS](https://img.shields.io/badge/macOS-12%2B-000000?logo=apple&logoColor=white)](https://github.com/wangzi5151/lumocast/releases)
+[![CI](https://github.com/wangzi5151/lumocast/actions/workflows/ci.yml/badge.svg)](https://github.com/wangzi5151/lumocast/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Source%20Available-orange)](LICENSE)
 
 </div>
@@ -48,15 +49,15 @@ LumoCast 把 **A 手机** 变成「信号源」（主机），把 **同一 Wi-Fi
 
 ## 下载
 
-所有安装包都由 GitHub Actions 自动构建，产物在 [Releases](../../releases) 页面：
+所有安装包都由 GitHub Actions 自动构建，产物在 [Releases](https://github.com/wangzi5151/lumocast/releases) 页面：
 
 | 平台 | 文件 | 说明 |
 | --- | --- | --- |
-| **Android** | `LumoCast-1.0.0-arm64-v8a.apk`<br>`LumoCast-1.0.0-universal.apk` | 发送端 + 接收端二合一。Android 8.0+ |
-| **iOS / iPadOS** | `LumoCast-1.0.0.ipa`（TestFlight 分发） | 接收端。iOS 15+ |
+| **Android** | **`LumoCast-1.0.0.apk`** | 发送端 + 接收端二合一。Android 8.0+。装完即可用 |
+| **iOS / iPadOS** | 自行用 Xcode 构建（`ios/`，见 [docs/BUILD.md](docs/BUILD.md)） | 接收端。iOS 15+。未签名，需 Apple 开发者账号真机安装 |
 | **Windows** | `LumoCast-Setup-1.0.0.exe`<br>`LumoCast-1.0.0-portable.exe` | 接收端。Win 10/11 x64 |
 | **Linux** | `LumoCast-1.0.0.AppImage`<br>`lumocast_1.0.0_amd64.deb`<br>`lumocast-1.0.0.x86_64.rpm` | 接收端。glibc 2.31+ |
-| **macOS** | `LumoCast-1.0.0-arm64.dmg`<br>`LumoCast-1.0.0-x64.dmg` | 接收端。Apple Silicon / Intel |
+| **macOS** | `LumoCast-1.0.0-arm64-mac.zip`<br>`LumoCast-1.0.0-x64-mac.zip` | 接收端。解压后把 .app 拖进「应用程序」。Apple Silicon / Intel |
 
 > 手机端「发送」功能需要 Android（系统级录屏权限所在平台仅 Android 允许第三方直接捕获屏幕）。
 > 其它平台的 LumoCast 是**接收端**，功能完整、免费。
@@ -66,12 +67,15 @@ LumoCast 把 **A 手机** 变成「信号源」（主机），把 **同一 Wi-Fi
 ## 功能
 
 ### 观看体验
-- **1080p / 60fps**，硬件编解码（H.264 Baseline/Main），端到端延迟 **60–90ms**
-- **自适应码率**：每秒探测 RTT 与丢帧，2–12 Mbps 动态调整，弱网自动降分辨率
+- **1080p / 60fps**（Pro 1440p），硬件编解码（H.264 Baseline/Main），端到端延迟 **60–90ms**
+- **有声音，而且对得上口型**：AAC-LC 48kHz 立体声，采集的是手机正在播放的系统声音（不是麦克风）。
+  以音频为主时钟，视频落后 150ms 自动丢帧 —— 宁可掉一帧画面，也不让声音断一下
+- **自适应码率**：每秒看 socket 背压，1.5–24 Mbps 动态调整，弱网自动降分辨率
 - **秒开**：开机即广播，接收端 2 秒内完成发现，握手到出画面 &lt; 400ms
 - **断线自愈**：Wi-Fi 抖动后自动重连，不退出画面
 - 全屏 / 等比 / 1:1 原始像素、镜像翻转、旋转锁定、画面裁切
 - 电池 & 温度守护：发送端过热自动降帧并提示
+- **实时延迟显示**：HUD 显示的是真实端到端（编码+网络+解码），不是 ping
 
 ### 连接与安全
 - **局域网直连**，视频流永不离开本地网络（无中继、无云、无数据采集）
