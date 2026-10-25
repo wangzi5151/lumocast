@@ -99,12 +99,14 @@ class HostService : Service() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        // 旋转/折叠屏展开：分辨率变了，必须重建编码器，否则接收端会花屏
+        // 以前这里会重建编码器来适配旋转 —— 这是一个必崩的路径：
+        //  1. ScreenEncoder.stop() 里会 projection.stop()，MediaProjection 一旦 stop 就作废；
+        //  2. Android 14 起，同一个 MediaProjection 实例只允许 createVirtualDisplay() 一次，
+        //     复用会直接抛异常 → 播放端黑屏、主机侧「编码器初始化失败」。
+        // 所以这里不再重建：VirtualDisplay 会自己把旋转后的画面按原尺寸缩放（两侧留黑边），
+        // 画面比例不对但连接是稳的。要完整画质就让用户重新点一次「共享本机屏幕」（会重新授权）。
         if (encoder != null && announced) {
-            handler.post {
-                Log.i(TAG, "configuration changed → restart encoder")
-                restartEncoder()
-            }
+            Log.i(TAG, "configuration changed → keep existing encoder (MediaProjection cannot be reused)")
         }
     }
 
@@ -297,43 +299,6 @@ class HostService : Service() {
             LiveSession.update { it.copy(error = t.message ?: "启动失败") }
             stopEverything("start_failed")
         }
-    }
-
-    private fun restartEncoder() {
-        val old = encoder ?: return
-        val p = projection ?: return
-        old.stop()
-        val size = computeSize()
-        encWidth = size.first
-        encHeight = size.second
-        val pfx = prefs ?: return
-        val fps = pfx.maxFps
-
-        val enc = ScreenEncoder(
-            projection = p,
-            width = encWidth,
-            height = encHeight,
-            densityDpi = resources.displayMetrics.densityDpi,
-            fps = fps,
-            initialBitrate = ScreenEncoder.suggestBitrate(encWidth, encHeight, fps),
-            listener = object : ScreenEncoder.Listener {
-                override fun onCodecConfig(csd: ByteArray) {
-                    server?.submitConfig(csd)
-                }
-
-                override fun onVideoFrame(data: ByteArray, ptsMs: Long, keyFrame: Boolean) {
-                    server?.submitFrame(data, ptsMs, keyFrame)
-                }
-
-                override fun onError(message: String) {
-                    LiveSession.update { it.copy(error = message) }
-                }
-            }
-        )
-        encoder = enc
-        enc.start()
-        server?.notifyRotation(encWidth, encHeight)
-        LiveSession.update { it.copy(width = encWidth, height = encHeight) }
     }
 
     /** 屏幕尺寸 → 编码尺寸：必须偶数，短边不超过上限，长边不超过 2400。 */
