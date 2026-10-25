@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +58,23 @@ fun SettingsScreen(onBack: () -> Unit) {
     var pinEnabled by remember { mutableStateOf(prefs.pinEnabled) }
     var maxFps by remember { mutableStateOf(prefs.maxFps) }
     var maxShort by remember { mutableStateOf(prefs.maxShortSide) }
+    var diagnosticHint by remember { mutableStateOf("连不上时复制这个") }
+    val hostState by com.lumocast.data.LiveSession.host.collectAsState()
+
+    fun buildDiagnostic(): String = buildString {
+        append("LumoCast 1.1.1  Android ").append(android.os.Build.VERSION.SDK_INT)
+        append("  (").append(android.os.Build.MANUFACTURER).append(' ')
+        append(android.os.Build.MODEL).append(")\n")
+        append("共享: running=").append(hostState.running)
+        append("  ").append(hostState.width).append('x').append(hostState.height)
+        append("  ").append(hostState.fps).append("fps  ")
+        append(hostState.bitrateKbps / 1000).append("Mbps\n")
+        append("地址: ").append(hostState.ip ?: "-").append(':').append(hostState.port).append("\n")
+        append("观看者: ").append(hostState.viewers.size).append("  ")
+        hostState.viewers.forEach { append(it.name).append('/').append(it.ip).append("  ") }
+        append("\n错误: ").append(hostState.error ?: "-").append("\n----\n")
+        append(com.lumocast.data.LiveSession.lastViewerDiagnostic ?: "（本机没有观看端失败记录）")
+    }
     Column(
         Modifier
             .fillMaxWidth()
@@ -160,7 +178,15 @@ fun SettingsScreen(onBack: () -> Unit) {
         GlassCard {
             LinkRow("隐私政策") { uriHandler.openUri("https://github.com/wangzi5151/lumocast/blob/main/docs/PRIVACY.md") }
             LinkRow("源码与许可证") { uriHandler.openUri("https://github.com/wangzi5151/lumocast") }
-            LinkRow("版本", "1.1.0 (2)") {}
+            LinkRow("版本", "1.1.1 (3)") {}
+            LinkRow("复制诊断信息", diagnosticHint) {
+                val clip = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                    as android.content.ClipboardManager
+                clip.setPrimaryClip(
+                    android.content.ClipData.newPlainText("LumoCast 诊断", buildDiagnostic())
+                )
+                diagnosticHint = "已复制"
+            }
         }
 
         Spacer(Modifier.height(24.dp))

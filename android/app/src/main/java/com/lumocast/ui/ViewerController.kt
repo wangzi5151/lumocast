@@ -205,6 +205,21 @@ class ViewerController(
 
                 override fun onClosed(reason: String) {
                     lastCloseReason = reason
+                    com.lumocast.data.LiveSession.lastViewerDiagnostic = buildString {
+                        append("viewer → ")
+                        append(ip).append(':').append(port)
+                        append("\n结果: ").append(reason)
+                        append("\n阶段: ").append(state.phase)
+                        append("\n收到帧: ").append(frames)
+                        append("  字节: ").append(bytes / 1024).append("KB")
+                        append("  丢帧: ").append(dropped)
+                        append("\nrtt: ").append(client?.currentRtt() ?: 0).append("ms")
+                        append("\n解码器: ").append(if (decoder != null) "已建立" else "未建立")
+                        append("  CSD: ").append(if (csd != null) "${csd!!.size}B" else "无")
+                        append("\n主机声明: ").append(state.width).append('x').append(state.height)
+                        append("  fps=").append(state.fps.toInt())
+                        append("  码率=").append("%.1f".format(state.mbps)).append("Mbps")
+                    }
                 }
             }
         )

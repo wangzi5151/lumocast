@@ -29,6 +29,9 @@ data class HostState(
 )
 
 object LiveSession {
+    /** 观看端最近一次断开/失败的现场信息，设置页可一键复制，用于定位「连不上」 */
+    @Volatile var lastViewerDiagnostic: String? = null
+
     private val _host = MutableStateFlow(HostState())
     val host: StateFlow<HostState> = _host.asStateFlow()
 
