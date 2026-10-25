@@ -299,7 +299,7 @@ class ViewerController(
             // 端到端延迟：localNow − (pts − offset)
             val offset = client?.clockOffsetMs()
             val latency = if (offset != null && lastPtsMs > 0) {
-                (SystemClock.elapsedRealtime() - (lastPtsMs - offset)).toInt().coerceIn(0, 3000)
+                (SystemClock.uptimeMillis() - (lastPtsMs - offset)).toInt().coerceIn(0, 3000)
             } else 0
 
             state = state.copy(

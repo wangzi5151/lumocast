@@ -62,7 +62,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     val hostState by com.lumocast.data.LiveSession.host.collectAsState()
 
     fun buildDiagnostic(): String = buildString {
-        append("LumoCast 1.1.1  Android ").append(android.os.Build.VERSION.SDK_INT)
+        append("LumoCast 1.1.2  Android ").append(android.os.Build.VERSION.SDK_INT)
         append("  (").append(android.os.Build.MANUFACTURER).append(' ')
         append(android.os.Build.MODEL).append(")\n")
         append("共享: running=").append(hostState.running)
@@ -178,7 +178,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         GlassCard {
             LinkRow("隐私政策") { uriHandler.openUri("https://github.com/wangzi5151/lumocast/blob/main/docs/PRIVACY.md") }
             LinkRow("源码与许可证") { uriHandler.openUri("https://github.com/wangzi5151/lumocast") }
-            LinkRow("版本", "1.1.1 (3)") {}
+            LinkRow("版本", "1.1.2 (4)") {}
             LinkRow("复制诊断信息", diagnosticHint) {
                 val clip = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
                     as android.content.ClipboardManager

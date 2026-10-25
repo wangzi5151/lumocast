@@ -70,7 +70,9 @@ class ViewerClient(
         try {
             val s = Socket()
             s.tcpNoDelay = true
-            s.receiveBufferSize = 2 shl 20
+            // 192KB：2MB 是 8Mbps 下足足 2 秒的缓冲，一次网络抖动就会把这些数据全变成「迟到的画面」。
+            // 留 192KB 足够吸收 Wi-Fi 抖动，又不会把延迟永久垫高。
+            s.receiveBufferSize = 192 * 1024
             s.connect(InetSocketAddress(host, port), 4000)
             s.soTimeout = 12_000
             socket = s
@@ -148,7 +150,7 @@ class ViewerClient(
                     }
 
                     Proto.T_PONG -> {
-                        val recv = android.os.SystemClock.elapsedRealtime()
+                        val recv = android.os.SystemClock.uptimeMillis()
                         val sentLocal = Proto.getInt(p.data, 4).toLong() and 0xFFFFFFFFL
                         val sample = (recv - sentLocal).toInt()
                         if (sample in 0..5000) rttMs = (rttMs * 3 + sample) / 4
@@ -180,7 +182,11 @@ class ViewerClient(
             var seq = 0
             while (running) {
                 try {
-                    val now = System.currentTimeMillis()
+                    // 必须用开机单调时钟（uptime），不能用 System.currentTimeMillis()：
+                    // 后者是墙钟毫秒（约 1.7e12），塞进 32 位 int 后会绕圈，
+                    // 对端减出来的 RTT 变成一个巨大的负数被过滤掉 —— 结果 rtt 永远是 0，
+                    // 延迟显示失真、主机自适应码率也完全瞎了。
+                    val now = android.os.SystemClock.uptimeMillis()
                     lastPingSentMs = now
                     writer?.writePing(seq++, now)
                     sendStat()

@@ -110,6 +110,10 @@ class AudioCapture(
 
             val pcm = ByteArray(bufferSize)
             val info = MediaCodec.BufferInfo()
+            // 关键：音频 pts 以前是「从 0 开始的已编码样本数」，和视频的 pts（主机单调时钟，
+            // 由 VirtualDisplay 打的时间戳）完全不是一个坐标轴 —— 接收端的音画同步因此一直是空转。
+            // 现在把第一包锚到主机 uptime，之后按样本数推进，两边就同源了。
+            val baseHostMs = android.os.SystemClock.uptimeMillis()
             var samplesQueued = 0L
 
             while (running) {
@@ -122,7 +126,7 @@ class AudioCapture(
                     if (inBuf != null) {
                         inBuf.clear()
                         inBuf.put(pcm, 0, read)
-                        val ptsUs = samplesQueued * 1_000_000L / Proto.AUDIO_SAMPLE_RATE
+                        val ptsUs = (baseHostMs + samplesQueued * 1000L / Proto.AUDIO_SAMPLE_RATE) * 1000L
                         // 每声道 2 字节
                         samplesQueued += (read / 2 / Proto.AUDIO_CHANNELS).toLong()
                         enc.queueInputBuffer(inIndex, 0, read, ptsUs, 0)

@@ -342,10 +342,18 @@ class HostService : Service() {
             val enc = encoder
             if (enc != null && state.viewers.isNotEmpty()) {
                 val worstRtt = state.viewers.maxOf { it.rttMs }
+                // 发送队列积压比 RTT 更早暴露拥塞：RTT 是几百毫秒前的信息，队列是「此刻发不出去」，
+                // 只靠 RTT 调码率会一直涨到把延迟垫高（bufferbloat），用户感受就是「越看越卡」。
+                val backlog = try {
+                    server?.maxBacklog() ?: 0
+                } catch (_: Throwable) {
+                    0
+                }
                 val current = enc.currentBitrate()
                 val target = when {
+                    backlog >= 2 -> (current * 0.85).toInt()
                     worstRtt > 250 -> (current * 0.8).toInt()
-                    worstRtt in 1..120 -> (current * 1.08).toInt()
+                    backlog == 0 && worstRtt in 1..120 -> (current * 1.08).toInt()
                     else -> current
                 }.coerceIn(Proto.BITRATE_MIN, Proto.BITRATE_MAX)
                 if (Math.abs(target - current) > current / 8) {

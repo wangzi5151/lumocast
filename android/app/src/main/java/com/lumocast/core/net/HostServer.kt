@@ -14,6 +14,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 private const val TAG = "LumoHost"
 
+/** 单客户端发送队列深度（帧）。见 Client.queue 的注释。 */
+private const val TX_QUEUE = 3
+
 /** 待发送的一帧视频/配置。 */
 class Frame(val type: Int, val flags: Int, val ptsMs: Long, val data: ByteArray)
 
@@ -64,6 +67,9 @@ class HostServer(
         private set
 
     val viewerCount: Int get() = clients.size
+
+    /** 所有客户端里最深的发送队列：>1 说明网络已经开始积压，该降码率了。 */
+    fun maxBacklog(): Int = clients.maxOfOrNull { it.backlog() } ?: 0
 
     private val videoW: Int get() = if (rotationW > 0) rotationW else initWidth.takeIf { it > 0 } ?: 1080
     private val videoH: Int get() = if (rotationH > 0) rotationH else initHeight.takeIf { it > 0 } ?: 1920
@@ -181,7 +187,7 @@ class HostServer(
         val ip = socket.inetAddress?.hostAddress ?: "?"
         try {
             socket.tcpNoDelay = true              // 关 Nagle：一个包就发，不攒
-            socket.sendBufferSize = 128 * 1024    // 内核排队越少，抖动越小
+            socket.sendBufferSize = 64 * 1024     // 内核排队越少延迟越低；64KB ≈ 8Mbps 下 65ms
             socket.keepAlive = true
             try {
                 socket.trafficClass = 0x10        // IPTOS_LOWDELAY
@@ -307,7 +313,8 @@ class HostServer(
         private val socket: Socket,
         val writer: PacketWriter
     ) {
-        private val queue = ArrayBlockingQueue<Frame>(8)
+        // 3 帧 ≈ 100ms @30fps。以前是 8 帧：网络一慢就在队列里攒 260ms，用户感知就是「延迟越看越大」。
+        private val queue = ArrayBlockingQueue<Frame>(TX_QUEUE)
         private val reader = PacketReader(socket.getInputStream())
         private var txThread: Thread? = null
 
@@ -323,15 +330,35 @@ class HostServer(
         }
 
         fun enqueue(f: Frame) {
+            val isVideo = f.type == Proto.T_VIDEO
+            val isDelta = isVideo && (f.flags and Proto.F_KEYFRAME) == 0
+
+            // 队里已经排着 2 帧视频还在等发：这帧 delta 干脆不排了。
+            // 排在 TCP 里的老帧已经注定是「过去」的画面，再往后塞只会让延迟继续涨。
+            if (isDelta && queue.count { it.type == Proto.T_VIDEO } >= 2) {
+                dropFrames++
+                return
+            }
             if (queue.offer(f)) return
-            // 队列满 = 该客户端网络跟不上。优先丢「最旧的 delta 视频帧」：
-            // 丢视频只是少一帧画面，丢音频会爆音，丢 IDR 会导致长时间花屏。
+
+            // 队列满 = 该客户端网络跟不上。牺牲顺序：delta 视频 > 关键帧 >…… 音频永远最后动，
+            // 因为丢一帧画面人眼没感觉，丢一段音频是实打实的爆音/断音。
             val victim = queue.firstOrNull {
                 it.type == Proto.T_VIDEO && (it.flags and Proto.F_KEYFRAME) == 0
+            } ?: queue.firstOrNull { it.type == Proto.T_VIDEO }
+            when {
+                victim != null -> queue.remove(victim)
+                isVideo -> {
+                    dropFrames++
+                    return
+                }
+                else -> queue.poll()
             }
-            if (victim != null) queue.remove(victim) else queue.poll()
             if (!queue.offer(f)) dropFrames++
         }
+
+        /** 队列里还压着几帧：自适应码率用它判断「发不出去了」，比 RTT 灵敏得多。 */
+        fun backlog(): Int = queue.size
 
         private fun txLoop() {
             try {
@@ -358,7 +385,9 @@ class HostServer(
                             val pong = ByteArray(12)
                             Proto.putInt(pong, 0, seq)
                             Proto.putInt(pong, 4, send)
-                            Proto.putInt(pong, 8, (SystemClock.elapsedRealtime() and 0xFFFFFFFFL).toInt())
+                            // 用 uptimeMillis 而不是 elapsedRealtime：视频 pts 来自 VirtualDisplay 打的时间戳
+                            // （CLOCK_MONOTONIC 域），两者同源，接收端算出的端到端延迟才是真的。
+                            Proto.putInt(pong, 8, (SystemClock.uptimeMillis() and 0xFFFFFFFFL).toInt())
                             writer.write(Proto.T_PONG, 0, 0, pong)
                         }
 
