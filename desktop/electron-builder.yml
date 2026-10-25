@@ -45,10 +45,8 @@ portable:
 linux:
   target:
     - target: AppImage
-      arch: [x64, arm64]
-    - target: deb
       arch: [x64]
-    - target: rpm
+    - target: deb
       arch: [x64]
   icon: build/icon.png
   category: Network
