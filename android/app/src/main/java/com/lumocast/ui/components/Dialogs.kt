@@ -15,6 +15,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -139,8 +142,8 @@ fun PlanBadge(isPro: Boolean, modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            if (isPro) androidx.compose.material.icons.Icons.Filled.Star
-            else androidx.compose.material.icons.Icons.Filled.Info,
+            if (isPro) Icons.Filled.Star
+            else Icons.Filled.Info,
             contentDescription = null,
             tint = color,
             modifier = Modifier.size(12.dp)
@@ -182,7 +185,7 @@ fun ProBanner(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) 
             .then(Modifier),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(androidx.compose.material.icons.Icons.Filled.Star, null, tint = LumoViolet, modifier = Modifier.size(16.dp))
+        Icon(Icons.Filled.Star, null, tint = LumoViolet, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(10.dp))
         Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         TextButton(onClick = onClick) { Text("升级", style = MaterialTheme.typography.labelLarge) }

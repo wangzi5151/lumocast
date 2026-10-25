@@ -221,7 +221,7 @@ class HostServer(
             }
 
             val viewerName = hello.optString("device", "Unknown").take(48)
-            val sid = Long.toHexString(System.nanoTime() xor (Math.random() * 1e9).toLong())
+            val sid = java.lang.Long.toHexString(System.nanoTime() xor (Math.random() * 1e9).toLong())
             // BufferedOutputStream：把「16 字节头 + 负载」合并成一次 write 系统调用
             val writer = PacketWriter(java.io.BufferedOutputStream(socket.getOutputStream(), 128 * 1024))
 

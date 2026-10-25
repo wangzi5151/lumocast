@@ -40,7 +40,7 @@ class ScreenRecorder(
         try {
             val buf = ByteBuffer.allocateDirect(avcc.size)
             buf.put(avcc)
-            buf.setPosition(0)
+            buf.position(0)
             val info = MediaCodec.BufferInfo().apply {
                 set(0, avcc.size, ptsUs, if (keyFrame) MediaCodec.BUFFER_FLAG_KEY_FRAME else 0)
             }

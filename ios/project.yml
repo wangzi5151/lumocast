@@ -1,0 +1,56 @@
+name: LumoCast
+options:
+  bundleIdPrefix: app.lumocast
+  deploymentTarget:
+    iOS: '15.0'
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+
+settings:
+  base:
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.9"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    DEVELOPMENT_TEAM: ""          # 填你的 Team ID 后可真机调试
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  LumoCast:
+    type: application
+    platform: iOS
+    deploymentTarget: '15.0'
+    sources:
+      - path: LumoCast
+        excludes:
+          - "Info.plist"
+    info:
+      path: LumoCast/Info.plist
+      properties:
+        CFBundleDisplayName: LumoCast
+        CFBundleName: LumoCast
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen:
+          UIColorName: ""
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIRequiresFullScreen: false
+        ITSAppUsesNonExemptEncryption: false
+        # iOS 14+ 访问局域网必须声明用途，否则收不到 UDP 广播
+        NSLocalNetworkUsageDescription: LumoCast 需要访问本地网络，才能发现同一 Wi-Fi 下正在共享屏幕的设备。
+        NSBonjourServices:
+          - _lumocast._tcp
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.lumocast.viewer
+        INFOPLIST_FILE: LumoCast/Info.plist
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: NO
+        ENABLE_BITCODE: NO
+    scheme:
+      testTargets: []

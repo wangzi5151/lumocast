@@ -1,0 +1,16 @@
+{
+  "name": "@lumocast/license-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LumoCast 离线 license 签发服务（Stripe + RSA 签名，零依赖）",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "LUMO_DEV=1 node server.mjs",
+    "keys": "node ../scripts/gen-license-keypair.mjs",
+    "sign": "node ../scripts/gen-license-keypair.mjs --sign"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
