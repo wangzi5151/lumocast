@@ -7,7 +7,7 @@
     "name": "LumoCast",
     "email": "hello@lumocast.app"
   },
-  "license": "SEE LICENSE IN ../LICENSE",
+  "license": "SEE LICENSE IN LICENSE",
   "private": true,
   "scripts": {
     "start": "electron .",
@@ -21,5 +21,13 @@
   "devDependencies": {
     "electron": "^30.5.1",
     "electron-builder": "^24.13.3"
+  },
+  "homepage": "https://github.com/wangzi5151/lumocast#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wangzi5151/lumocast.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wangzi5151/lumocast/issues"
   }
 }

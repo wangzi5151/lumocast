@@ -42,3 +42,5 @@ server/keys/*-private.pem
 .DS_Store
 Thumbs.db
 *.log
+desktop/LICENSE
+desktop/README.md

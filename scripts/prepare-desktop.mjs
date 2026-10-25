@@ -14,4 +14,12 @@ await cp(src, dest, {
   filter: (f) => !f.endsWith('package.json'),
 });
 await access(path.join(dest, 'index.html'));
+
+// electron-builder 的 deb/rpm 元数据会引用 LICENSE，拷一份进来
+for (const name of ['LICENSE', 'README.md']) {
+  try {
+    await cp(path.join(root, name), path.join(root, 'desktop', name));
+  } catch (_) {}
+}
+
 console.log('✔ web/ → desktop/web');
