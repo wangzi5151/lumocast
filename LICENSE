@@ -1,0 +1,56 @@
+LumoCast Source-Available License v1.0
+======================================
+
+Copyright (c) 2026 LumoCast. All rights reserved.
+
+This is **not** an open source license. It is a source-available license that
+grants you limited rights to use, study and modify the software, while keeping
+commercial redistribution reserved to the copyright holder.
+
+1. GRANT
+   Subject to the terms below, you are granted a non-exclusive, worldwide,
+   royalty-free license to:
+   a) use the software for personal, non-commercial purposes, without limit on
+      the number of devices you personally own;
+   b) use the software inside your organization for internal purposes
+      (meetings, demos, internal training, remote support), regardless of the
+      organization's size;
+   c) read, study, and modify the source code;
+   d) redistribute the *unmodified* source code, provided this license file is
+      kept intact and the redistribution is not done for a fee.
+
+2. RESTRICTIONS
+   Without prior written permission from the copyright holder, you may NOT:
+   a) sell, rent, lease or sublicense the software or any derivative of it,
+      including selling devices with the software preinstalled;
+   b) publish a modified version (including a fork) as an app store listing,
+      a paid product, or any commercial distribution channel;
+   c) remove, obscure or alter any license verification, branding, or
+      attribution notices;
+   d) use the LumoCast name or logo to endorse a derived product.
+
+   Building and sharing builds with friends, teammates or clients for the
+   purposes in 1(a) and 1(b) is fine and always will be.
+
+3. THIRD-PARTY COMPONENTS
+   This software uses third-party libraries under their own licenses, including
+   but not limited to AndroidX / Jetpack Compose (Apache-2.0), Kotlin (Apache-2.0),
+   Electron (MIT), and the WebCodecs API. Those licenses govern those components
+   and nothing in this file restricts rights you have under them.
+
+4. PATENTS
+   No patent rights are granted, express or implied, except those necessarily
+   implied by section 1.
+
+5. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+6. COMMERCIAL LICENSING
+   For commercial redistribution, OEM preinstallation, white-labeling, or any
+   use not covered above, contact: license@lumocast.app

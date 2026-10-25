@@ -83,7 +83,7 @@ fun GradientBackdrop(content: @Composable BoxScopeContent) {
     }
 }
 
-typealias BoxScopeContent = @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit
+typealias BoxScopeContent = androidx.compose.foundation.layout.BoxScope.() -> Unit
 
 /** 玻璃拟态卡片。 */
 @Composable
