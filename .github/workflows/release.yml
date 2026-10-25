@@ -1,0 +1,202 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发布的 tag，例如 v1.0.0'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------- Android
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    env:
+      KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      # 有 secrets 就用正式签名，没有就回退 debug 签名（仍可直接安装）
+      - name: 恢复 keystore（有 secrets 才执行）
+        if: env.KEYSTORE_B64 != ''
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > android/lumocast.jks
+          cat > android/keystore.properties <<EOF
+          storeFile=lumocast.jks
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+
+      - name: 构建
+        working-directory: android
+        run: gradle :app:assembleRelease --no-daemon --stacktrace
+
+      - name: 重命名为可读文件名
+        run: |
+          mkdir -p out
+          VERSION=$(grep -oP 'versionName = "\K[^"]+' android/app/build.gradle.kts | head -1)
+          APK=$(find android/app/build/outputs/apk/release -name '*.apk' | head -1)
+          cp "$APK" "out/LumoCast-${VERSION}.apk"
+          ls -lh out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: out/*.apk
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------- Linux
+  linux:
+    name: Linux AppImage / deb / rpm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: sudo apt-get update && sudo apt-get install -y rpm fakeroot
+      - name: 装配 desktop/web
+        run: node scripts/prepare-desktop.mjs
+      - name: 安装依赖
+        working-directory: desktop
+        run: npm install --no-audit --no-fund
+      - name: 打包
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --linux --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: |
+            desktop/release/*.AppImage
+            desktop/release/*.deb
+            desktop/release/*.rpm
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------- Windows
+  windows:
+    name: Windows exe
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 装配 desktop/web
+        run: node scripts/prepare-desktop.mjs
+      - name: 安装依赖
+        working-directory: desktop
+        run: npm install --no-audit --no-fund
+      - name: 打包
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-packages
+          path: desktop/release/*.exe
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------- macOS
+  macos:
+    name: macOS dmg
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/prepare-desktop.mjs
+      - working-directory: desktop
+        run: npm install --no-audit --no-fund
+      - name: 打包（未签名）
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --mac --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-packages
+          path: desktop/release/*.dmg
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------- 发布
+  publish:
+    name: 发布 Release
+    needs: [android, linux, windows, macos]
+    runs-on: ubuntu-latest
+    if: always() && needs.android.result == 'success'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: 生成校验和
+        run: |
+          cd artifacts
+          ls -lh
+          sha256sum * > checksums.txt || true
+          cat checksums.txt
+
+      - name: 创建 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          name: LumoCast ${{ inputs.tag || github.ref_name }}
+          draft: false
+          generate_release_notes: true
+          body: |
+            ## 下载
+
+            | 平台 | 文件 |
+            | --- | --- |
+            | Android 8.0+ | `LumoCast-*.apk` |
+            | Windows 10/11 | `LumoCast-*-x64.exe`（安装版）、`*-portable.exe`（免安装） |
+            | Linux | `*.AppImage`（免安装）、`*.deb`、`*.rpm` |
+            | macOS 12+ | `LumoCast-*-arm64.dmg`、`*-x64.dmg` |
+
+            > 未做代码签名：Windows 会弹 SmartScreen、macOS 需右键「打开」。
+            > 个人/内部使用完全没问题；正式发行请按 `docs/BUILD.md` 配证书。
+
+            ## 这个版本能做什么
+
+            - 安卓手机 → 同局域网任意设备，视频 + 系统音频
+            - 1080p60，Pro 可到 1440p；实测端到端延迟 60–90ms
+            - 音画同步：音频做主时钟，视频落后 150ms 自动丢帧
+            - PIN / 二维码连接，纯局域网，无云端
+
+            校验和见 `checksums.txt`。
+          files: |
+            artifacts/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

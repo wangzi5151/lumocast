@@ -1,0 +1,10 @@
+{
+  "name": "@lumocast/web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LumoCast 渲染内核：WebCodecs 解码 + Canvas 呈现（无框架、无打包）",
+  "scripts": {
+    "serve": "npx --yes serve . -l 5173"
+  }
+}

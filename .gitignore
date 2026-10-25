@@ -1,0 +1,44 @@
+# --- 构建产物
+build/
+out/
+dist/
+release/
+*.apk
+*.aab
+*.ipa
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+
+# --- Gradle / Android
+.gradle/
+local.properties
+keystore.properties
+*.jks
+*.keystore
+captures/
+.cxx/
+
+# --- Node / Electron
+node_modules/
+desktop/web/
+package-lock.json
+
+# --- Xcode
+ios/*.xcodeproj/
+ios/*.xcworkspace/
+ios/build/
+DerivedData/
+*.xcuserstate
+
+# --- 机密（只提交 .env.example）
+.env
+server/.env
+server/keys/*-private.pem
+
+# --- 系统
+.DS_Store
+Thumbs.db
+*.log

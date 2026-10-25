@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="lumo_background">#0B0D17</color>
+    <color name="lumo_surface">#141726</color>
+    <color name="lumo_primary">#6C5CE7</color>
+    <color name="lumo_secondary">#00D8C0</color>
+    <color name="lumo_on_background">#F2F3F8</color>
+</resources>

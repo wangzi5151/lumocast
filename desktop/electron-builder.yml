@@ -1,0 +1,86 @@
+appId: app.lumocast.viewer
+productName: LumoCast
+copyright: Copyright © 2025 LumoCast
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - main.js
+  - preload.js
+  - package.json
+  - web/**/*
+
+asar: true
+asarUnpack: []
+
+extraMetadata:
+  main: main.js
+
+# ---------------------------------------------------------------- Windows
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: build/icon.png
+  artifactName: LumoCast-${version}-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: LumoCast
+  installerLanguages: [zh_CN, en_US]
+  language: '2052'
+
+portable:
+  artifactName: LumoCast-${version}-portable.${ext}
+
+# ---------------------------------------------------------------- Linux
+linux:
+  target:
+    - target: AppImage
+      arch: [x64, arm64]
+    - target: deb
+      arch: [x64]
+    - target: rpm
+      arch: [x64]
+  icon: build/icon.png
+  category: Network
+  synopsis: 局域网安卓投屏接收端
+  description: 把安卓手机的屏幕实时投到电脑上，点对点局域网直连，不经过任何服务器。
+  desktop:
+    entry:
+      Name: LumoCast
+      Comment: 局域网安卓投屏接收端
+      Keywords: screen;mirror;cast;android;lan;
+      StartupWMClass: LumoCast
+
+# ---------------------------------------------------------------- macOS
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  icon: build/icon.png
+  category: public.app-category.utilities
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  artifactName: LumoCast-${version}-${arch}.${ext}
+
+dmg:
+  title: LumoCast ${version}
+  contents:
+    - x: 140
+      y: 170
+      type: file
+    - x: 400
+      y: 170
+      type: link
+      path: /Applications

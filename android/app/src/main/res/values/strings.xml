@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LumoCast</string>
+    <string name="tagline">同一个 Wi-Fi，投到任何屏幕</string>
+
+    <string name="home_share_title">共享本机屏幕</string>
+    <string name="home_share_sub">把这台手机的屏幕投到局域网内的另一台设备</string>
+    <string name="home_nearby_title">附近的屏幕</string>
+    <string name="home_nearby_empty">正在搜索同一 Wi-Fi 下的设备…</string>
+    <string name="home_nearby_hint">找不到？确认两台设备连的是同一个 Wi-Fi，或扫描对方屏幕上的二维码</string>
+
+    <string name="host_title">正在共享</string>
+    <string name="host_stop">停止共享</string>
+    <string name="host_pin_label">连接 PIN</string>
+    <string name="host_watchers">%1$d 台设备在观看</string>
+    <string name="host_waiting">等待设备连接…</string>
+    <string name="host_qr_hint">用另一台设备扫描二维码即可开始观看</string>
+    <string name="host_notif_channel">屏幕共享中</string>
+    <string name="host_notif_title">LumoCast 正在共享屏幕</string>
+    <string name="host_notif_text">%1$s · 点击停止</string>
+
+    <string name="viewer_connecting">正在连接…</string>
+    <string name="viewer_enter_pin">输入对方屏幕上的 4 位 PIN</string>
+    <string name="viewer_connect">连接</string>
+    <string name="viewer_reconnect">重新连接</string>
+    <string name="viewer_failed">连接失败：%1$s</string>
+    <string name="viewer_hud">%.0f fps · %.1f Mbps · %d ms</string>
+    <string name="viewer_touch">触摸回控</string>
+
+    <string name="settings_title">设置</string>
+    <string name="settings_device_name">本机名称</string>
+    <string name="settings_pin">连接需要 PIN</string>
+    <string name="settings_max_fps">最高帧率</string>
+    <string name="settings_resolution">最高分辨率</string>
+    <string name="settings_license">激活 Pro</string>
+    <string name="settings_license_free">当前为免费版</string>
+    <string name="settings_license_pro">Pro 已激活</string>
+    <string name="settings_about">关于</string>
+    <string name="settings_privacy">隐私政策</string>
+
+    <string name="pro_title">升级 LumoCast Pro</string>
+    <string name="pro_sub">1080p60 · 触摸回控 · 录制 · 无水印</string>
+    <string name="pro_yearly">年付 ¥48</string>
+    <string name="pro_lifetime">买断 ¥128</string>
+    <string name="pro_restore">我已购买，恢复授权</string>
+    <string name="pro_activate_hint">粘贴购买邮件里的 license</string>
+</resources>

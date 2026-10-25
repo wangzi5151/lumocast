@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# LumoCast 自举式 Gradle 启动器：本仓库不提交 gradle-wrapper.jar（二进制），
+# 首次运行会自动下载对应版本的 Gradle 发行包并缓存，之后完全离线可用。
+set -euo pipefail
+
+DIST_VERSION="8.7"
+DIST_NAME="gradle-${DIST_VERSION}"
+BASE_URL="https://services.gradle.org/distributions"
+CACHE_ROOT="${GRADLE_USER_HOME:-$HOME/.gradle}/lumo-dist"
+DIST_DIR="${CACHE_ROOT}/${DIST_NAME}"
+
+if [ ! -x "${DIST_DIR}/bin/gradle" ]; then
+  echo "▸ 首次运行：下载 Gradle ${DIST_VERSION}（约 130MB，仅一次）…"
+  mkdir -p "${CACHE_ROOT}"
+  TMP_ZIP="${CACHE_ROOT}/${DIST_NAME}.zip"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fL --retry 3 -o "${TMP_ZIP}" "${BASE_URL}/${DIST_NAME}-bin.zip"
+  else
+    wget -O "${TMP_ZIP}" "${BASE_URL}/${DIST_NAME}-bin.zip"
+  fi
+  (cd "${CACHE_ROOT}" && unzip -q -o "${DIST_NAME}.zip" && rm -f "${DIST_NAME}.zip")
+  chmod +x "${DIST_DIR}/bin/gradle"
+fi
+
+export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$HOME/.gradle}"
+exec "${DIST_DIR}/bin/gradle" -p "$(cd "$(dirname "$0")" && pwd)" "$@"

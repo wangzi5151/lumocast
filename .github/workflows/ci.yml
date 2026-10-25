@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'web/**'
+      - 'desktop/**'
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  protocol-test:
+    name: 协议一致性
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 跑 round-trip 测试
+        run: node scripts/protocol-test.mjs
+
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 安装 SDK 组件
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+
+      - name: Gradle 缓存
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+          cache-read-only: false
+
+      - name: 构建 release APK
+        working-directory: android
+        run: gradle :app:assembleRelease --no-daemon --stacktrace
+
+      - name: 收集产物
+        run: |
+          mkdir -p out
+          find android/app/build/outputs/apk -name '*.apk' -exec cp {} out/ \;
+          ls -lh out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lumocast-apk
+          path: out/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  desktop-smoke:
+    name: 桌面端可加载
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 准备 web 资源
+        run: node scripts/prepare-desktop.mjs
+      - name: 语法检查
+        run: |
+          node --check desktop/main.js
+          node --check desktop/preload.js
+          node --check desktop/web/js/app.js
+          test -f desktop/web/index.html

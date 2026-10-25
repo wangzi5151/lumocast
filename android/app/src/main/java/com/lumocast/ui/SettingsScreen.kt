@@ -1,0 +1,325 @@
+package com.lumocast.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.lumocast.core.license.License
+import com.lumocast.data.Prefs
+import com.lumocast.ui.components.GlassCard
+import com.lumocast.ui.components.GradientButton
+import com.lumocast.ui.components.Pill
+import com.lumocast.ui.theme.Lumo
+import com.lumocast.ui.theme.LumoBlue
+import com.lumocast.ui.theme.LumoMint
+import com.lumocast.ui.theme.LumoRed
+import com.lumocast.ui.theme.LumoViolet
+
+@Composable
+fun SettingsScreen(onBack: () -> Unit, onOpenPro: () -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember { Prefs.get(context) }
+    val uriHandler = LocalUriHandler.current
+
+    var deviceName by remember { mutableStateOf(prefs.deviceName) }
+    var pinEnabled by remember { mutableStateOf(prefs.pinEnabled) }
+    var maxFps by remember { mutableStateOf(prefs.maxFps) }
+    var maxShort by remember { mutableStateOf(prefs.maxShortSide) }
+    var token by remember { mutableStateOf(prefs.licenseToken ?: "") }
+    var activationMsg by remember { mutableStateOf<String?>(null) }
+
+    val entitlement = remember(token) { License.verify(token.ifBlank { null }, context) }
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Filled.ArrowBack, "返回", tint = MaterialTheme.colorScheme.onBackground)
+            }
+            Text("设置", style = MaterialTheme.typography.headlineSmall)
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        // ---------------------------------------------------------- 授权状态
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(22.dp))
+                .background(
+                    if (entitlement.active)
+                        Brush.linearGradient(listOf(LumoMint.copy(alpha = 0.22f), LumoBlue.copy(alpha = 0.18f)))
+                    else
+                        Brush.linearGradient(listOf(LumoViolet.copy(alpha = 0.22f), LumoBlue.copy(alpha = 0.16f)))
+                )
+                .clickable { onOpenPro() }
+                .padding(18.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.Star, null,
+                    tint = if (entitlement.active) LumoMint else LumoViolet,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (entitlement.active) "Pro 已激活" else "免费版",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        when {
+                            entitlement.active && entitlement.isLifetime -> "买断授权 · 永久有效"
+                            entitlement.active -> "有效期至 ${
+                                java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                                    .format(java.util.Date(entitlement.expiryEpochSec * 1000))
+                            }"
+                            else -> "1080p30 · 单设备 · 有水印"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Lumo.Subtle
+                    )
+                }
+                Pill(if (entitlement.active) "PRO" else "升级", color = if (entitlement.active) LumoMint else LumoViolet)
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // ---------------------------------------------------------- 主机设置
+        GlassCard {
+            Text("共享设置", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = deviceName,
+                onValueChange = {
+                    deviceName = it.take(24)
+                    prefs.deviceName = it
+                },
+                label = { Text("本机名称（对方列表里看到的名字）") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(14.dp))
+            SettingRow("连接需要 PIN", "关闭后同一 Wi-Fi 内任何人可直接观看") {
+                Switch(
+                    checked = pinEnabled,
+                    onCheckedChange = {
+                        pinEnabled = it
+                        prefs.pinEnabled = it
+                    }
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+            SettingRow("当前 PIN", prefs.pin) {
+                Text("重新生成", style = MaterialTheme.typography.labelLarge, color = LumoViolet,
+                    modifier = Modifier.clickable {
+                        prefs.pin = (1000..9999).random().toString()
+                        activationMsg = null
+                    })
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Text("最高帧率", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SegmentedOption("30 fps", maxFps == 30) {
+                    maxFps = 30
+                    prefs.maxFps = 30
+                }
+                SegmentedOption("60 fps", maxFps == 60, enabled = entitlement.active) {
+                    maxFps = 60
+                    prefs.maxFps = 60
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Text("画面质量上限", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SegmentedOption("自动", maxShort == 0) {
+                    maxShort = 0
+                    prefs.maxShortSide = 0
+                }
+                SegmentedOption("1080p", maxShort == 1080) {
+                    maxShort = 1080
+                    prefs.maxShortSide = 1080
+                }
+                SegmentedOption("720p", maxShort == 720) {
+                    maxShort = 720
+                    prefs.maxShortSide = 720
+                }
+                SegmentedOption("1440p", maxShort == 1440, enabled = entitlement.active) {
+                    maxShort = 1440
+                    prefs.maxShortSide = 1440
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "免费版最高 1080p / 30fps；Pro 可到 1440p / 60fps。降低质量能明显减少发热与耗电。",
+                style = MaterialTheme.typography.labelSmall,
+                color = Lumo.Subtle
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // ---------------------------------------------------------- 激活
+        GlassCard {
+            Text("激活 Pro", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "把购买邮件里的 license 粘贴到这里，离线验证，不上传任何数据",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Lumo.Subtle
+            )
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = token,
+                onValueChange = { token = it.trim() },
+                label = { Text("LC1.…") },
+                minLines = 2,
+                maxLines = 4,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(10.dp))
+            GradientButton("验证并激活", icon = Icons.Filled.Check) {
+                val ent = License.verify(token.ifBlank { null }, context)
+                if (ent.active) {
+                    prefs.licenseToken = token.ifBlank { null }
+                    activationMsg = "已激活：${ent.plan}"
+                } else {
+                    activationMsg = "license 无效或已过期"
+                }
+            }
+            activationMsg?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (it.startsWith("已激活")) LumoMint else LumoRed
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // ---------------------------------------------------------- 关于
+        GlassCard {
+            LinkRow("隐私政策") { uriHandler.openUri("https://github.com/lumocast/lumocast/blob/main/docs/PRIVACY.md") }
+            LinkRow("开源许可与源码") { uriHandler.openUri("https://github.com/lumocast/lumocast") }
+            LinkRow("设备 ID（用于授权绑定）", License.deviceId(context)) {}
+            LinkRow("版本", "1.0.0 (1)") {}
+        }
+
+        Spacer(Modifier.height(24.dp))
+        Text(
+            "LumoCast 不收集屏幕内容、不上传任何数据。\n视频只在你的局域网内传输。",
+            style = MaterialTheme.typography.labelSmall,
+            color = Lumo.Subtle
+        )
+        Spacer(Modifier.height(40.dp))
+    }
+}
+
+@Composable
+private fun SettingRow(title: String, subtitle: String, trailing: @Composable () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = Lumo.Subtle)
+        }
+        trailing()
+    }
+}
+
+@Composable
+private fun SegmentedOption(text: String, selected: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (selected) LumoViolet.copy(alpha = 0.20f) else Lumo.CardBg)
+            .border(
+                1.dp,
+                if (selected) LumoViolet else Lumo.CardBorder,
+                RoundedCornerShape(12.dp)
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelLarge,
+            color = when {
+                !enabled -> Lumo.Subtle
+                selected -> LumoViolet
+                else -> Color.Unspecified
+            }
+        )
+    }
+}
+
+@Composable
+private fun LinkRow(title: String, value: String? = null, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+        if (value != null) {
+            Text(value, style = MaterialTheme.typography.labelSmall, color = Lumo.Subtle)
+        }
+    }
+}
