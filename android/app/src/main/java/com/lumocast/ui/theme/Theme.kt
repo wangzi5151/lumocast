@@ -80,7 +80,7 @@ object Lumo {
     val Subtle: Color
         @Composable get() = if (IsDark) TextTertiary else Color(0xFF656D82)
     val Gradient: List<Color>
-        @Composable get() = listOf(LumoViolet, LumoBlue)
+        @Composable get() = listOf(LumoVioletDeep, LumoBlueDeep)
     val GradientMint: List<Color>
-        @Composable get() = listOf(LumoMint, Color(0xFF7FC6D8))
+        @Composable get() = listOf(LumoMintDeep, LumoBlueDeep)
 }

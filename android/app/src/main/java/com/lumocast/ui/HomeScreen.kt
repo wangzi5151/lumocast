@@ -68,7 +68,9 @@ import com.lumocast.ui.components.SectionHeader
 import com.lumocast.ui.theme.Lumo
 import com.lumocast.ui.theme.LumoBlue
 import com.lumocast.ui.theme.LumoMint
+import com.lumocast.ui.theme.LumoBlueDeep
 import com.lumocast.ui.theme.LumoViolet
+import com.lumocast.ui.theme.LumoVioletDeep
 
 @Composable
 fun HomeScreen(
@@ -139,7 +141,7 @@ fun HomeScreen(
                     Modifier
                         .size(34.dp)
                         .clip(RoundedCornerShape(11.dp))
-                        .background(Brush.linearGradient(listOf(LumoViolet, LumoBlue))),
+                        .background(Brush.linearGradient(listOf(LumoVioletDeep, LumoBlueDeep))),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Filled.Cast, null, tint = Color.White, modifier = Modifier.size(18.dp))
@@ -173,7 +175,7 @@ fun HomeScreen(
                     .clip(RoundedCornerShape(26.dp))
                     .background(
                         Brush.linearGradient(
-                            listOf(LumoViolet.copy(alpha = 0.95f), LumoBlue.copy(alpha = 0.85f))
+                            listOf(LumoVioletDeep.copy(alpha = 0.98f), LumoBlueDeep.copy(alpha = 0.98f))
                         )
                     )
                     .clickable {
@@ -226,13 +228,13 @@ fun HomeScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 if (hostState.running) Icons.Filled.Cast else Icons.Filled.PlayArrow,
-                                null, tint = LumoViolet, modifier = Modifier.size(18.dp)
+                                null, tint = LumoVioletDeep, modifier = Modifier.size(18.dp)
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 if (hostState.running) "查看连接信息" else "开始共享",
                                 style = MaterialTheme.typography.labelLarge,
-                                color = LumoViolet,
+                                color = LumoVioletDeep,
                                 fontWeight = FontWeight.Bold
                             )
                         }

@@ -18,6 +18,12 @@ val LumoAmber  = Color(0xFFE8BC7B)   // 一般 / 提醒
 val LumoPink   = Color(0xFFE79AB4)
 val LumoRed    = Color(0xFFE58081)   // 错误（降饱和，不刺眼）
 
+// 上面几个是「深色背景上当前景色」用的浅色；下面两个是**背景色**，配白字用，
+// 否则浅紫底 + 白字只有 2.7:1，等于看不清。
+val LumoVioletDeep = Color(0xFF5B63D6)   // 白字 5.0:1
+val LumoBlueDeep   = Color(0xFF3776AE)   // 白字 4.8:1
+val LumoMintDeep   = Color(0xFF1B7A67)   // 白字 ≈4.6:1
+
 // ---- 深色表面（整体抬高，卡片靠明度区分而不是靠纯黑压深）
 val Ink950 = Color(0xFF1C2029)
 val Ink900 = Color(0xFF22262F)
