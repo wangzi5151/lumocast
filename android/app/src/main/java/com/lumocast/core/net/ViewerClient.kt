@@ -118,7 +118,8 @@ class ViewerClient(
             )
             listener.onWelcome(welcome)
 
-            s.soTimeout = 0
+            // 收流阶段也要有超时：Wi-Fi 掉线不会收到 FIN，否则会一直「画面僵住」而不知道断了
+            s.soTimeout = Proto.NET_IDLE_TIMEOUT_MS
             writer = PacketWriter(s.getOutputStream())
             reader = PacketReader(s.getInputStream())
             startPingLoop()
@@ -162,6 +163,8 @@ class ViewerClient(
                 }
             }
             listener.onClosed("连接结束")
+        } catch (e: java.net.SocketTimeoutException) {
+            listener.onClosed("网络中断：${Proto.NET_IDLE_TIMEOUT_MS / 1000} 秒没有收到数据")
         } catch (e: IOException) {
             listener.onClosed(e.message ?: "网络错误")
         } catch (t: Throwable) {
@@ -181,10 +184,13 @@ class ViewerClient(
                     lastPingSentMs = now
                     writer?.writePing(seq++, now)
                     sendStat()
+                } catch (_: Exception) {
+                    // 单次写失败（拥塞、瞬时丢包）不能让心跳线程退出：
+                    // 心跳一停，主机 8 秒后就把这条连接判死 → 用户看到的就是「连一会儿自己断了」
+                }
+                try {
                     Thread.sleep(1000)
                 } catch (_: InterruptedException) {
-                    return@Thread
-                } catch (_: Exception) {
                     return@Thread
                 }
             }

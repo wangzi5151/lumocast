@@ -3,6 +3,7 @@ package com.lumocast.ui
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -142,10 +144,20 @@ fun ViewerScreen(
                     CircularProgressIndicator(color = LumoViolet, strokeWidth = 2.5.dp)
                     Spacer(Modifier.height(14.dp))
                     Text(
-                        "正在连接 $name…",
+                        if (state.reconnecting > 0) "连接中断，正在重连（第 ${state.reconnecting} 次）…"
+                        else "正在连接 $name…",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.75f)
+                        color = Color.White.copy(alpha = 0.75f),
+                        textAlign = TextAlign.Center
                     )
+                    if (state.reconnecting > 0) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "正在自动重试，不用手动点",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.45f)
+                        )
+                    }
                 }
             }
 
@@ -172,6 +184,22 @@ fun ViewerScreen(
                         icon = Icons.Filled.Refresh,
                         modifier = Modifier.width(200.dp)
                     ) { attempt++ }
+                    Spacer(Modifier.height(10.dp))
+                    Box(
+                        Modifier
+                            .width(200.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color.White.copy(alpha = 0.10f))
+                            .clickable { onBack() }
+                            .padding(vertical = 15.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "结束投屏",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }
@@ -236,6 +264,29 @@ fun ViewerScreen(
                         checked = touchEnabled,
                         onCheckedChange = { touchEnabled = it },
                         modifier = Modifier.size(width = 42.dp, height = 26.dp)
+                    )
+                }
+
+                // 结束投屏：一直显示在控制条最右边，不用去找返回箭头
+                Row(
+                    Modifier
+                        .padding(start = 10.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(LumoRed.copy(alpha = 0.92f))
+                        .clickable { onBack() }
+                        .padding(horizontal = 13.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Filled.Stop, null,
+                        tint = Color.White, modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        "结束",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }

@@ -178,6 +178,8 @@ class HostService : Service() {
                 pinRequired = pfx.pinEnabled,
                 pin = pin,
                 maxFps = fps,
+                initWidth = encWidth,
+                initHeight = encHeight,
                 onViewersChanged = { infos ->
                     val lite = infos.map { ViewerLite(it.id, it.name, it.ip, it.rttMs) }
                     LiveSession.update { it.copy(viewers = lite) }

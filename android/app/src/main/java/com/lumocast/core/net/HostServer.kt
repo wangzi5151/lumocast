@@ -30,6 +30,9 @@ class HostServer(
     private val pinRequired: Boolean,
     val pin: String,
     private val maxFps: Int,
+    /** 真实编码尺寸：welcome 里必须给对，否则接收端按错误宽高比渲染（拉伸/黑边）。 */
+    private val initWidth: Int = 0,
+    private val initHeight: Int = 0,
     private val onViewersChanged: (List<ViewerInfo>) -> Unit = {},
     private val onLog: (String) -> Unit = {},
     private val onNeedKeyFrame: () -> Unit = {},
@@ -61,6 +64,9 @@ class HostServer(
         private set
 
     val viewerCount: Int get() = clients.size
+
+    private val videoW: Int get() = if (rotationW > 0) rotationW else initWidth.takeIf { it > 0 } ?: 1080
+    private val videoH: Int get() = if (rotationH > 0) rotationH else initHeight.takeIf { it > 0 } ?: 1920
     private val maxViewers: Int
         get() = Proto.MAX_VIEWERS
 
@@ -94,6 +100,7 @@ class HostServer(
     }
 
     fun stop() {
+        broadcastControl("""{"t":"end"}""")
         running = false
         try {
             serverSocket?.close()
@@ -229,8 +236,8 @@ class HostServer(
                 buildString {
                     append("{\"t\":\"welcome\",\"v\":").append(Proto.VERSION)
                     append(",\"sid\":\"").append(sid).append('"')
-                    append(",\"w\":").append(rotationW.coerceAtLeast(1080))
-                    append(",\"h\":").append(rotationH.coerceAtLeast(1920))
+                    append(",\"w\":").append(videoW)
+                    append(",\"h\":").append(videoH)
                     append(",\"fps\":").append(maxFps)
                     append(",\"codec\":\"avc\"")
                     append(",\"pin_required\":").append(pinRequired)
@@ -241,7 +248,8 @@ class HostServer(
                 }
             )
 
-            socket.soTimeout = 0 // 之后进入无超时的帧流模式
+            // 之后用空闲超时兜底：对端每 1s 有 PING，8s 没有任何字节 = 链路已死
+            socket.soTimeout = Proto.NET_IDLE_TIMEOUT_MS
 
             val client = Client(sid, viewerName, ip, socket, writer)
             clients.add(client)
@@ -358,6 +366,8 @@ class HostServer(
                         else -> Unit // 未知类型忽略（前向兼容）
                     }
                 }
+            } catch (_: java.net.SocketTimeoutException) {
+                close("idle") // 半开连接：Wi-Fi 断了但没收到 FIN
             } catch (_: Exception) {
             }
             close("peer_closed")
@@ -412,29 +422,48 @@ class HostServer(
     }
 
     companion object {
-        /** 给二维码/UI 用：取第一个可用的 IPv4 局域网地址。 */
+        /**
+         * 给二维码 / UI 用的本机地址。
+         *
+         * 直接「第一个非 loopback IPv4」是错的：开着数据网络、VPN、Tailscale、Docker 的机器上
+         * 常常先枚举到 rmnet0(10.x) / tun0 / 172.17.x —— 二维码里就变成一个对方根本连不上的地址，
+         * 表现就是「扫了没反应 / 一直转圈」。所以按网卡名打分：Wi-Fi > 以太网 > 其它，虚拟网卡直接排除。
+         */
         fun localIpv4(): String? {
+            data class Cand(val name: String, val host: String, val score: Int)
+            val out = ArrayList<Cand>()
             try {
                 for (nif in NetworkInterface.getNetworkInterfaces()) {
                     if (!nif.isUp || nif.isLoopback) continue
-                    for (addr in nif.inetAddresses) {
-                        if (addr is Inet4Address && !addr.isLoopbackAddress) {
-                            val host = addr.hostAddress ?: continue
-                            if (host.startsWith("192.168.") || host.startsWith("10.") ||
-                                host.startsWith("172.") || host.startsWith("169.254.")
-                            ) return host
-                        }
+                    val name = (nif.name ?: "").lowercase()
+                    if (name.startsWith("dummy") || name.startsWith("tun") || name.startsWith("tap") ||
+                        name.startsWith("ppp") || name.startsWith("rmnet") || name.startsWith("ccmni") ||
+                        name.startsWith("clat") || name.startsWith("ip6") || name.startsWith("sit") ||
+                        name.contains("docker") || name.contains("veth")
+                    ) continue
+                    val base = when {
+                        name.startsWith("wlan") -> 100
+                        name.startsWith("ap") || name.startsWith("softap") -> 90
+                        name.startsWith("eth") -> 80
+                        name.startsWith("p2p") -> 40
+                        else -> 10
                     }
-                }
-                // 兜底：任意一个非 loopback IPv4
-                for (nif in NetworkInterface.getNetworkInterfaces()) {
                     for (addr in nif.inetAddresses) {
-                        if (addr is Inet4Address && !addr.isLoopbackAddress) return addr.hostAddress
+                        if (addr is Inet4Address && !addr.isLoopbackAddress && !addr.isLinkLocalAddress) {
+                            val host = addr.hostAddress ?: continue
+                            val bonus = when {
+                                host.startsWith("192.168.") -> 5
+                                host.startsWith("10.") -> 3
+                                host.startsWith("172.") -> 1
+                                else -> 0
+                            }
+                            out.add(Cand(name, host, base + bonus))
+                        }
                     }
                 }
             } catch (_: Exception) {
             }
-            return null
+            return out.maxByOrNull { it.score }?.host
         }
     }
 }

@@ -23,6 +23,8 @@ data class ViewerUiState(
     /** 端到端（玻璃到玻璃）估算延迟，含编码 + 网络 + 解码 */
     val latencyMs: Int = 0,
     val canTouch: Boolean = false,
+    /** >0 = 正在第 n 次自动重连（UI 拿去显示「重连中 2/5」） */
+    val reconnecting: Int = 0,
     val hostName: String = "",
     val audio: Boolean = false,
     val droppedFrames: Int = 0
@@ -61,9 +63,16 @@ class ViewerController(
     @Volatile private var dropped = 0
     @Volatile private var lastPtsMs = 0L
     @Volatile private var lastFrameAtMs = 0L
+    @Volatile private var hostEnded = false
+    private var lastCloseReason: String = "连接中断"
 
     private var connectThread: Thread? = null
     private var statsThread: Thread? = null
+
+    private companion object {
+        /** 自动重连上限；超过就摆出错误页，不再无声空转 */
+        const val MAX_RETRY = 5
+    }
 
     /** 视频落后音频超过这个值就丢帧（150ms ≈ 一个完整音节，超过就会被看出来「对不上口型」） */
     private val lateThresholdMs = 150L
@@ -73,7 +82,7 @@ class ViewerController(
     fun start() {
         if (running) return
         running = true
-        connectThread = Thread({ connectLoop() }, "lumo-viewer").apply {
+        connectThread = Thread({ retryLoop() }, "lumo-viewer").apply {
             isDaemon = true
             start()
         }
@@ -140,6 +149,7 @@ class ViewerController(
                     )
                     maybeConfigureDecoder()
                     lastFrameAtMs = SystemClock.elapsedRealtime()
+                    hostEnded = false
                 }
 
                 override fun onConfig(csd: ByteArray) {
@@ -162,6 +172,14 @@ class ViewerController(
                     bytes += data.size.toLong()
                     lastFrameAtMs = SystemClock.elapsedRealtime()
 
+                    // ---- 兜底：有的机型只在 IDR 里带 SPS/PPS，CONFIG 包可能是空的
+                    if (decoder == null && keyFrame && this@ViewerController.csd == null) {
+                        com.lumocast.util.AnnexB.extractCsd(data)?.let {
+                            this@ViewerController.csd = it
+                            maybeConfigureDecoder()
+                        }
+                    }
+
                     // ---- 音画同步闸门：丢掉已经「过期」的 delta 帧
                     val clock = audio?.currentHostMs()
                     if (clock != null && !keyFrame && ptsMs - clock < -lateThresholdMs) {
@@ -174,6 +192,7 @@ class ViewerController(
 
                 override fun onHostControl(json: String) {
                     if (json.contains("\"end\"")) {
+                        hostEnded = true
                         state = state.copy(phase = ViewerUiState.Phase.ERROR, error = "主机结束了共享")
                     }
                     if (json.contains("\"rotate\"")) {
@@ -185,13 +204,46 @@ class ViewerController(
                 }
 
                 override fun onClosed(reason: String) {
-                    if (!running) return
-                    state = state.copy(phase = ViewerUiState.Phase.ERROR, error = reason)
+                    lastCloseReason = reason
                 }
             }
         )
         client = c
         c.connect()
+        client = null
+    }
+
+    /** 断线自动重连：Wi-Fi 抖动、切换信道、主机切前台，都不该让用户手动点「重新连接」。 */
+    private fun retryLoop() {
+        var attempt = 0
+        while (running) {
+            val startedAt = SystemClock.elapsedRealtime()
+            lastFrameAtMs = startedAt
+            connectLoop()
+            if (!running) return
+            if (hostEnded) {
+                state = state.copy(phase = ViewerUiState.Phase.ERROR, error = "主机结束了共享", reconnecting = 0)
+                return
+            }
+            // 稳定连了 15 秒以上才断 → 算一次新故障，重试次数归零
+            if (SystemClock.elapsedRealtime() - startedAt > 15_000) attempt = 0
+            attempt++
+            if (attempt > MAX_RETRY) {
+                state = state.copy(
+                    phase = ViewerUiState.Phase.ERROR,
+                    error = "$lastCloseReason\n已重试 $MAX_RETRY 次。检查两台设备是否在同一 Wi-Fi。",
+                    reconnecting = 0
+                )
+                return
+            }
+            state = state.copy(phase = ViewerUiState.Phase.CONNECTING, error = null, reconnecting = attempt)
+            val backoff = minOf(1000L shl (attempt - 1).coerceAtMost(2), 4000L)
+            try {
+                Thread.sleep(backoff)
+            } catch (_: InterruptedException) {
+                return
+            }
+        }
     }
 
     private fun maybeConfigureDecoder() {
@@ -219,11 +271,13 @@ class ViewerController(
             lastFrames = f
             lastBytes = b
 
-            if (state.phase != ViewerUiState.Phase.LIVE) continue
+            // 画面停住 → 先要 IDR（最快恢复）；一直不恢复就主动断链，让重连循环接管
+            val now = SystemClock.elapsedRealtime()
+            val silent = if (lastFrameAtMs == 0L) 0L else now - lastFrameAtMs
+            if (silent in 2_000..8_000) client?.requestKeyFrame()
+            if (silent > 8_000) client?.close()
 
-            // 1.5s 没有新帧 → 主动要 IDR（比干等或重连都快）
-            val stalled = SystemClock.elapsedRealtime() - lastFrameAtMs > 1500
-            if (stalled && lastFrameAtMs > 0) client?.requestKeyFrame()
+            if (state.phase != ViewerUiState.Phase.LIVE) continue
 
             // 端到端延迟：localNow − (pts − offset)
             val offset = client?.clockOffsetMs()

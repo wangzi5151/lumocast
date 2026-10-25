@@ -38,6 +38,13 @@ object Proto {
     const val PORT_CONTROL_MAX = 8747
     const val PORT_DISCOVERY = 8738
     const val ANNOUNCE_INTERVAL_MS = 2000L
+
+    /**
+     * 链路空闲判定。Wi-Fi 断开时 TCP 不会收到 FIN —— 连接会一直「看起来还在」，
+     * 主机端于是把死连接当成在观看的客户端（占满名额、后续设备连不上）。
+     * 双方都用这个超时：这么久没收到任何字节就判定链路已死。
+     */
+    const val NET_IDLE_TIMEOUT_MS = 8_000
     /** 同时观看设备上限（无付费分层，所有人一样） */
     const val MAX_VIEWERS = 5
 

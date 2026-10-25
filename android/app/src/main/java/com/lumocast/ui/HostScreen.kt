@@ -1,6 +1,8 @@
 package com.lumocast.ui
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -55,11 +58,16 @@ fun HostScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val state by LiveSession.host.collectAsState()
 
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-    ) {
+    Column(Modifier.fillMaxSize()) {
+
+        // 内容区：可滚动。之前这里没有 scroll，内容一长「停止共享」被挤出屏幕 —— 这就是找不到结束按钮的原因。
+        Column(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+        ) {
         Row(
             Modifier
                 .fillMaxWidth()
@@ -71,7 +79,27 @@ fun HostScreen(onBack: () -> Unit) {
             }
             Text("共享中", style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.weight(1f))
-            if (state.running) PulseDot(LumoMint, 9.dp)
+            if (state.running) {
+                PulseDot(LumoMint, 9.dp)
+                Spacer(Modifier.width(10.dp))
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(LumoRed.copy(alpha = 0.16f))
+                        .clickable { HostService.stop(context) }
+                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Filled.Stop, null, tint = LumoRed, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        "结束",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = LumoRed,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
 
         if (!state.running) {
@@ -217,27 +245,44 @@ fun HostScreen(onBack: () -> Unit) {
             }
         }
 
-        Spacer(Modifier.height(18.dp))
-        Box(
+            Spacer(Modifier.height(26.dp))
+        }
+
+        // 常驻底栏：不滚动、不藏在页面底部，任何滚动位置都能点
+        if (state.running) {
+            StopBar(onStop = { HostService.stop(context) })
+        }
+    }
+}
+
+/** 结束投屏按钮：实心红、白字，56dp 高，手指容易点到。 */
+@Composable
+private fun StopBar(onStop: () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 20.dp)
+            .padding(top = 10.dp, bottom = 18.dp)
+    ) {
+        Row(
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(18.dp))
-                .background(LumoRed.copy(alpha = 0.14f))
-                .clickable { HostService.stop(context) }
-                .padding(vertical = 16.dp),
-            contentAlignment = Alignment.Center
+                .background(LumoRed)
+                .clickable(onClick = onStop)
+                .padding(vertical = 17.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Stop, null, tint = LumoRed, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    "停止共享",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = LumoRed,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            Icon(Icons.Filled.Stop, null, tint = Color.White, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "结束投屏",
+                style = MaterialTheme.typography.labelLarge,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
         }
-        Spacer(Modifier.height(30.dp))
     }
 }
