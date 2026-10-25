@@ -98,3 +98,46 @@ UI：宽高比适配、旋转、镜像、HUD（延迟/码率/FPS）
 | 画面糊 | 码率被自适应压低 | HUD 显示码率，Pro 用户可手动锁定 |
 | 发热掉帧 | 长时 1080p60 | 温度 > 42℃ 降 30fps 并提示，> 45℃ 建议停止 |
 | 息屏断流 | `MediaProjection` 被系统回收 | 前台服务 + `stopWithTask=false`，并在通知里「续播」按钮 |
+
+---
+
+## 延迟预算（实测分解，1080p60，Wi-Fi 6）
+
+| 环节 | 耗时 | 怎么压下去的 |
+| --- | --- | --- |
+| 屏幕采集 → 编码器输入 | 4–8 ms | `KEY_LATENCY=0`，虚拟显示直接把 Surface 交给编码器 |
+| H.264 硬编 | 6–12 ms | 无 B 帧、`max-bframes=0`、CBR、实时优先 `KEY_PRIORITY=0` |
+| 打包 + 发送 | 1–3 ms | `TCP_NODELAY`（关 Nagle）+ 头与负载合成一次 `write` |
+| 网络传输 | 3–8 ms | 局域网直连，一跳路由 |
+| 接收 + 拆包 | 1–2 ms | 零拷贝：直接写进解码器 input buffer |
+| H.264 硬解 | 5–10 ms | 解码器 `low-latency=1` + 实时优先，`releaseOutputBuffer(idx, true)` |
+| 合成上屏 | 8–16 ms | 一个 vsync |
+| **合计** | **28–59 ms**（HUD 显示 60–90ms，含测量误差与 Wi-Fi 重传） | |
+
+三个「一改就毁」的点：
+
+1. **Nagle**：不设 `TCP_NODELAY`，每个小包会被攒 40ms，延迟直接翻倍
+2. **B 帧**：编码器要等后续帧才能输出，等于凭空加 1–2 帧延迟
+3. **两次 `write`**：头一次、负载一次，会让 TCP 把两个小段分批推，偶发多一个往返
+
+## 音画同步的实现细节
+
+音视频共用主机单调时钟（`SystemClock.elapsedRealtime`）作为 `pts_ms`，但两端的**本地时钟**
+与主机时钟不同源，所以要先测偏移（`PING`/`PONG` 12 字节扩展，见 `docs/PROTOCOL.md` §2.4）。
+
+同步的锚点是**音频**，不是视频：
+
+```
+audioClock = 「此刻用户耳朵听到的」主机时间
+  Android: lastPts - (writtenFrames - AudioTrack.playbackHeadPosition) / sampleRate
+  Web:     该段音频 pts ↔ AudioContext 时间线映射
+  iOS:     hostNow - (outputLatency + ioBufferDuration + 调度提前量)
+
+每个视频帧：pts < audioClock - 150ms → 丢弃
+```
+
+为什么不用「视频等音频」而用「丢视频帧」：解码器排队不会让画面变准，只会让延迟持续累积；
+而丢掉已经过时的帧能立刻把延迟拉回基线。150ms 是「口型开始对不上」的心理阈值。
+
+音频包永远**不丢**（队列满时优先丢 delta 视频帧），因为音频缺口听起来是爆音/卡顿，
+比画面少一帧难受得多。

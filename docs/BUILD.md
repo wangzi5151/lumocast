@@ -125,3 +125,73 @@ git tag v1.0.0 && git push origin v1.0.0
 | 打包后 AppImage 打不开 | `chmod +x *.AppImage`，若报 FUSE 缺失：`--appimage-extract-and-run` |
 | Windows 上 `npm run dist:linux` 失败 | 不支持交叉打 deb，交给 CI 的 ubuntu job |
 | iOS 模拟器收不到设备 | 模拟器与手机不在同一网段，必须用真机测发现 |
+
+---
+
+## 6. CI 一键出包（推荐）
+
+仓库自带两条 workflow，**不需要本地装 Android SDK / Xcode**：
+
+### 6.1 日常验证（`.github/workflows/ci.yml`）
+
+push 到 `main` 自动触发，跑三件事：
+
+| Job | 内容 | 耗时 |
+| --- | --- | --- |
+| 协议一致性 | `node scripts/protocol-test.mjs`（17 项） | ~10s |
+| Android APK | `gradle :app:assembleRelease`，产物上传为 artifact | ~3min |
+| 桌面端可加载 | 语法检查 + `desktop/web` 装配验证 | ~15s |
+
+### 6.2 发版（`.github/workflows/release.yml`）
+
+推一个 tag 就出全平台安装包：
+
+```bash
+git tag -a v1.0.1 -m "修了什么"
+git push origin v1.0.1
+```
+
+四个平台并行构建，全部完成后由 `publish` job 汇总到 GitHub Release：
+
+```
+android → LumoCast-<ver>.apk
+linux   → LumoCast-<ver>.AppImage, lumocast_<ver>_amd64.deb
+windows → LumoCast-<ver>-x64.exe, LumoCast-<ver>-portable.exe
+macos   → LumoCast-<ver>-arm64-mac.zip, LumoCast-<ver>-x64-mac.zip
+```
+
+`checksums.txt` 会一起附在 Release 里。
+
+### 6.3 正式签名（可选）
+
+CI 默认用 debug key 签名（**能直接安装**，适合内测）。要正式签名，在仓库 Settings → Secrets 里加：
+
+| Secret | 说明 |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | `base64 -w0 release.jks` 的结果 |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore 口令 |
+| `ANDROID_KEY_ALIAS` | key 别名 |
+| `ANDROID_KEY_PASSWORD` | key 口令 |
+
+加完之后 release 流程会自动切到正式签名，APK 就可以覆盖安装旧版本（签名不同会导致「应用未安装」）。
+
+---
+
+## 7. iOS 端（需要 Mac）
+
+```bash
+cd ios
+brew install xcodegen        # 只需一次
+xcodegen generate            # 从 project.yml 生成 LumoCast.xcodeproj
+open LumoCast.xcodeproj
+```
+
+然后在 Xcode 里：
+
+1. **Signing & Capabilities** → 选你的 Team（免费 Apple ID 也可以，7 天有效期）
+2. 连上 iPhone，选中设备，⌘R
+
+真机第一次启动会弹「LumoCast 想要查找并连接到本地网络上的设备」→ 必须点**允许**，否则收不到 UDP 广播（可用二维码/手输 IP 绕过）。
+
+> 为什么 iOS 没有预编译包：iOS 侧载需要 Apple 开发者签名，无法像 Android 那样给一个通用 APK。
+> 如果你有开发者账号，可以归档后走 TestFlight 分发给自己和朋友。
