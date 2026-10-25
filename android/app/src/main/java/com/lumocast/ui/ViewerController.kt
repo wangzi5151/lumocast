@@ -286,11 +286,13 @@ class ViewerController(
             lastFrames = f
             lastBytes = b
 
-            // 画面停住 → 先要 IDR（最快恢复）；一直不恢复就主动断链，让重连循环接管
+            // 画面停住 → 要一个 IDR（最快恢复）；一直没画面就断链，让重连循环接手。
+            // 阈值取 4s/12s：编码器 KEY_I_FRAME_INTERVAL=2s，正常情况至少 2 秒一帧，
+            // 4s 还没新帧才是真异常（取太紧会在静态画面下反复请求 IDR，白烧码率）。
             val now = SystemClock.elapsedRealtime()
             val silent = if (lastFrameAtMs == 0L) 0L else now - lastFrameAtMs
-            if (silent in 2_000..8_000) client?.requestKeyFrame()
-            if (silent > 8_000) client?.close()
+            if (silent > 4_000) client?.requestKeyFrame()
+            if (silent > 12_000) client?.close()
 
             if (state.phase != ViewerUiState.Phase.LIVE) continue
 
