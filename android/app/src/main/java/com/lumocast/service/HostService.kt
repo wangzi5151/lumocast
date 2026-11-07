@@ -18,6 +18,8 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
+import android.os.SystemClock
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.WindowManager
@@ -28,6 +30,7 @@ import com.lumocast.R
 import com.lumocast.core.media.AudioCapture
 import com.lumocast.core.media.ScreenEncoder
 import com.lumocast.core.media.ScreenRecorder
+import com.lumocast.core.media.ThermalPolicy
 import com.lumocast.core.net.DiscoveryBroadcaster
 import com.lumocast.core.net.HostServer
 import com.lumocast.core.net.Proto
@@ -58,7 +61,12 @@ class HostService : Service() {
     private var prefs: Prefs? = null
     private var encWidth = 1080
     private var encHeight = 1920
+    private var baseFps = 60
     private var announced = false
+
+    @Volatile private var thermalStatus = 0
+    @Volatile private var lastVideoSentAt = 0L
+    private var thermalListener: PowerManager.OnThermalStatusChangedListener? = null
 
     // ------------------------------------------------------------ lifecycle
 
@@ -173,7 +181,12 @@ class HostService : Service() {
             val pfx = prefs ?: Prefs.get(this).also { prefs = it }
             val pin = pfx.pin
             val fps = pfx.maxFps
+            baseFps = fps
             val bitrate = ScreenEncoder.suggestBitrate(encWidth, encHeight, fps)
+            val touchAllowed = pfx.remoteControlEnabled && InputService.isReady(this)
+            if (pfx.remoteControlEnabled && !touchAllowed) {
+                Log.w(TAG, "remote control enabled in settings but accessibility service is off")
+            }
 
             val srv = HostServer(
                 deviceName = pfx.deviceName,
@@ -190,11 +203,18 @@ class HostService : Service() {
                 onLog = { Log.d(TAG, it) },
                 onNeedKeyFrame = { encoder?.requestKeyFrame() },
                 onTouch = { action, x, y ->
-                    // 触摸回控需要系统级注入权限（root/无障碍），开源版只在 Pro + 无障碍模式下透传，
-                    // 未实现时保持静默，避免给用户「按了没反应」的错觉 → 由接收端 UI 提示不支持。
-                    Log.d(TAG, "touch $action ($x,$y) ignored: input injection not enabled")
+                    if (!InputService.injectTouch(action, x, y)) {
+                        Log.w(TAG, "touch $action ($x,$y) dropped: accessibility service not ready")
+                    }
                 },
-                onKey = { code -> Log.d(TAG, "key $code ignored") }
+                onKey = { code ->
+                    if (!InputService.injectKey(code)) {
+                        Log.w(TAG, "key $code dropped: accessibility service not ready")
+                    }
+                },
+                allowTouch = touchAllowed,
+                verifyPairToken = { token -> pfx.validatePairToken(token) },
+                issuePairToken = { pfx.issuePairToken() }
             )
             val port = srv.start()
             server = srv
@@ -228,6 +248,15 @@ class HostService : Service() {
                     }
 
                     override fun onVideoFrame(data: ByteArray, ptsMs: Long, keyFrame: Boolean) {
+                        // 过热降帧：系统热状态达到 MODERATE/SEVERE 时按目标帧率丢弃多余 delta 帧。
+                        // 关键帧永远放行，否则接收端会长时间停在花屏/旧画面上。
+                        val plan = ThermalPolicy.plan(thermalStatus, fps)
+                        val now = SystemClock.elapsedRealtime()
+                        if (!keyFrame && plan.fpsCap < fps) {
+                            val minGapMs = 1000L / plan.fpsCap.coerceAtLeast(1)
+                            if (now - lastVideoSentAt < minGapMs) return
+                        }
+                        lastVideoSentAt = now
                         srv.submitFrame(data, ptsMs, keyFrame)
                         recorder?.onFrame(data, ptsMs * 1000, keyFrame)
                     }
@@ -286,12 +315,19 @@ class HostService : Service() {
                     put("h", encHeight)
                     put("fps", fps)
                     put("nonce", nonce)
-                    put("cap", org.json.JSONArray(listOf("h264")))
+                    put("cap", org.json.JSONArray(buildList {
+                        add("h264")
+                        add("audio")
+                        add("av")
+                        add("record")
+                        if (touchAllowed) add("touch")
+                    }))
                 }.toString()
             }.also { it.start() }
             announced = true
 
             acquireWifiLock()
+            startThermalMonitor(fps)
             handler.post(adaptRunnable)
             Log.i(TAG, "hosting on $ip:$port ${encWidth}x$encHeight@$fps")
         } catch (t: Throwable) {
@@ -334,6 +370,52 @@ class HostService : Service() {
         return (w / 2 * 2).coerceAtLeast(320) to (h / 2 * 2).coerceAtLeast(320)
     }
 
+    // ------------------------------------------------------------ thermal guard
+
+    private fun startThermalMonitor(baseFps: Int) {
+        if (Build.VERSION.SDK_INT < 29) return
+        val pm = getSystemService(PowerManager::class.java) ?: return
+        thermalStatus = pm.currentThermalStatus
+        applyThermalStatus(thermalStatus, baseFps)
+        val listener = PowerManager.OnThermalStatusChangedListener { status ->
+            applyThermalStatus(status, baseFps)
+        }
+        try {
+            pm.addThermalStatusListener(mainExecutor, listener)
+            thermalListener = listener
+        } catch (t: Throwable) {
+            Log.w(TAG, "thermal listener failed: ${t.message}")
+        }
+    }
+
+    private fun applyThermalStatus(status: Int, baseFps: Int) {
+        thermalStatus = status
+        val plan = ThermalPolicy.plan(status, baseFps)
+        LiveSession.update {
+            it.copy(
+                thermalLevel = status,
+                thermalNote = plan.note,
+                fps = if (status >= ThermalPolicy.MODERATE) plan.fpsCap else baseFps
+            )
+        }
+        if (plan.stop && announced) {
+            handler.post {
+                stopEverything("thermal")
+                LiveSession.update { it.copy(error = "设备过热，已停止共享") }
+            }
+        }
+    }
+
+    private fun stopThermalMonitor() {
+        if (Build.VERSION.SDK_INT < 29) return
+        val listener = thermalListener ?: return
+        thermalListener = null
+        try {
+            (getSystemService(PowerManager::class.java))?.removeThermalStatusListener(listener)
+        } catch (_: Throwable) {
+        }
+    }
+
     // ------------------------------------------------------------ adaptive bitrate
 
     private val adaptRunnable = object : Runnable {
@@ -350,15 +432,19 @@ class HostService : Service() {
                     0
                 }
                 val current = enc.currentBitrate()
+                val thermalPlan = ThermalPolicy.plan(thermalStatus, prefs?.maxFps ?: baseFps)
                 val target = when {
                     backlog >= 2 -> (current * 0.85).toInt()
                     worstRtt > 250 -> (current * 0.8).toInt()
                     backlog == 0 && worstRtt in 1..120 -> (current * 1.08).toInt()
                     else -> current
-                }.coerceIn(Proto.BITRATE_MIN, Proto.BITRATE_MAX)
-                if (Math.abs(target - current) > current / 8) {
-                    enc.setBitrate(target)
-                    LiveSession.update { it.copy(bitrateKbps = target / 1000) }
+                }
+                val scaled = (target * thermalPlan.bitrateScale).toInt()
+                    .coerceIn(Proto.BITRATE_MIN, Proto.BITRATE_MAX)
+                val thermalDrop = thermalPlan.bitrateScale < 1.0 && scaled < current
+                if (Math.abs(scaled - current) > current / 8 || thermalDrop) {
+                    enc.setBitrate(scaled)
+                    LiveSession.update { it.copy(bitrateKbps = scaled / 1000) }
                 }
             }
             handler.postDelayed(this, 2000)
@@ -369,6 +455,7 @@ class HostService : Service() {
 
     private fun stopEverything(reason: String) {
         handler.removeCallbacks(adaptRunnable)
+        stopThermalMonitor()
         try {
             audio?.stop()
         } catch (_: Throwable) {

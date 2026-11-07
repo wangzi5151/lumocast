@@ -22,7 +22,9 @@ class ViewerClient(
     private val port: Int,
     private val pin: String?,
     private val deviceName: String,
-    private val listener: Listener
+    private val listener: Listener,
+    /** 上次配对拿到的令牌；为空则只发 PIN。 */
+    private val pairToken: String? = null
 ) {
 
     data class Welcome(
@@ -33,7 +35,9 @@ class ViewerClient(
         val free: Boolean,
         val pinRequired: Boolean,
         val name: String,
-        val canTouch: Boolean
+        val canTouch: Boolean,
+        /** 主机新签发/续用的 7 天配对令牌；客户端应持久化并在下次 hello 里带回。 */
+        val pairToken: String? = null
     )
 
     interface Listener {
@@ -82,6 +86,9 @@ class ViewerClient(
                 append("{\"t\":\"hello\",\"v\":").append(Proto.VERSION)
                 append(",\"role\":\"viewer\",\"device\":").append(JSONObject.quote(deviceName))
                 append(",\"pin\":").append(JSONObject.quote(pin ?: ""))
+                if (!pairToken.isNullOrBlank()) {
+                    append(",\"pair\":").append(JSONObject.quote(pairToken))
+                }
                 append('}')
             }
             writeHandshakeLine(s.getOutputStream(), hello)
@@ -116,7 +123,8 @@ class ViewerClient(
                 free = obj.optBoolean("free", true),
                 pinRequired = obj.optBoolean("pin_required", true),
                 name = obj.optString("name", "Host"),
-                canTouch = canTouch
+                canTouch = canTouch,
+                pairToken = obj.optString("pair", "").takeIf { it.isNotBlank() }
             )
             listener.onWelcome(welcome)
 

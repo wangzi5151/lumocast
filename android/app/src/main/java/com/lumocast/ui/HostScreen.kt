@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.lumocast.data.LiveSession
 import com.lumocast.service.HostService
 import com.lumocast.ui.components.GlassCard
+import com.lumocast.ui.components.Pill
 import com.lumocast.ui.components.PinDisplay
 import com.lumocast.ui.components.PulseDot
 import com.lumocast.ui.components.SectionHeader
@@ -193,6 +194,24 @@ fun HostScreen(onBack: () -> Unit) {
             StatChip("帧率", "${state.fps}fps", Modifier.weight(1f))
             StatChip("码率", "${state.bitrateKbps / 1000.0f}M", Modifier.weight(1f))
             StatChip("观看", "${state.viewers.size}", Modifier.weight(1f))
+        }
+
+        state.thermalNote?.let { note ->
+            Spacer(Modifier.height(12.dp))
+            GlassCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Pill(
+                        if (state.thermalLevel >= 4) "过热" else "偏热",
+                        color = if (state.thermalLevel >= 4) LumoRed else Color(0xFFFFC062)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        note,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Lumo.Subtle
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.height(14.dp))

@@ -46,7 +46,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.lumocast.data.Prefs
 import com.lumocast.ui.components.GradientButton
+import com.lumocast.ui.components.PinDialog
 import com.lumocast.ui.components.QualityDot
 import com.lumocast.ui.theme.Lumo
 import com.lumocast.ui.theme.LumoMint
@@ -63,12 +65,23 @@ fun ViewerScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val prefs = remember { Prefs.get(context) }
+    val hostKey = remember(ip, port) { "$ip:$port" }
     var attempt by remember { mutableIntStateOf(0) }
+    var activePin by remember { mutableStateOf(pin) }
+    var pinDialogVisible by remember { mutableStateOf(false) }
     var touchEnabled by remember { mutableStateOf(false) }
     var hudVisible by remember { mutableStateOf(true) }
 
-    val controller = remember(ip, port, pin, attempt) {
-        ViewerController(ip, port, pin, "LumoCast Android")
+    val controller = remember(ip, port, activePin, attempt) {
+        ViewerController(
+            ip = ip,
+            port = port,
+            pin = activePin,
+            deviceName = "LumoCast Android",
+            pairToken = prefs.viewerPairToken(hostKey),
+            onPairToken = { prefs.setViewerPairToken(hostKey, it) }
+        )
     }
     val state = controller.state
 
@@ -179,6 +192,25 @@ fun ViewerScreen(
                         color = Color.White.copy(alpha = 0.5f)
                     )
                     Spacer(Modifier.height(22.dp))
+                    if (state.error?.contains("PIN") == true) {
+                        Box(
+                            Modifier
+                                .width(200.dp)
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(LumoViolet.copy(alpha = 0.9f))
+                                .clickable { pinDialogVisible = true }
+                                .padding(vertical = 15.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "输入 PIN 重试",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(Modifier.height(10.dp))
+                    }
                     GradientButton(
                         text = "重新连接",
                         icon = Icons.Filled.Refresh,
@@ -292,5 +324,18 @@ fun ViewerScreen(
             }
 
         }
+    }
+
+    if (pinDialogVisible) {
+        PinDialog(
+            hostName = state.hostName.ifBlank { name },
+            error = null,
+            onDismiss = { pinDialogVisible = false },
+            onConfirm = { entered ->
+                activePin = entered
+                pinDialogVisible = false
+                attempt++
+            }
+        )
     }
 }

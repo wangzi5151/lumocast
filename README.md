@@ -29,7 +29,7 @@ LumoCast 把 **A 手机** 变成「信号源」（主机），把 **同一 Wi-Fi
 ```
   ┌───────────────┐        H.264 · TCP · 局域网        ┌───────────────────┐
   │  Android 手机 │ ─────────────────────────────────▶ │  Android / iOS    │
-  │  （发送端）   │ ◀───────── 触摸回控 / 心跳 ─────── │  Windows / Linux  │
+  │  （发送端）   │ ◀────── 可选触摸回控 / 心跳 ────── │  Windows / Linux  │
   └───────────────┘                                    └───────────────────┘
 ```
 
@@ -53,11 +53,11 @@ LumoCast 把 **A 手机** 变成「信号源」（主机），把 **同一 Wi-Fi
 
 | 平台 | 文件 | 说明 |
 | --- | --- | --- |
-| **Android** | **`LumoCast-1.0.0.apk`** | 发送端 + 接收端二合一。Android 8.0+。装完即可用 |
+| **Android** | **`LumoCast-1.1.3.apk`** | 发送端 + 接收端二合一。Android 8.0+。装完即可用 |
 | **iOS / iPadOS** | 自行用 Xcode 构建（`ios/`，见 [docs/BUILD.md](docs/BUILD.md)） | 接收端。iOS 15+。未签名，需 Apple 开发者账号真机安装 |
-| **Windows** | `LumoCast-Setup-1.0.0.exe`<br>`LumoCast-1.0.0-portable.exe` | 接收端。Win 10/11 x64 |
-| **Linux** | `LumoCast-1.0.0.AppImage`<br>`lumocast_1.0.0_amd64.deb` | 接收端。AppImage 免安装（`chmod +x` 后直接运行）。glibc 2.31+ |
-| **macOS** | `LumoCast-1.0.0-arm64-mac.zip`<br>`LumoCast-1.0.0-x64-mac.zip` | 接收端。解压后把 .app 拖进「应用程序」。Apple Silicon / Intel |
+| **Windows** | `LumoCast-Setup-1.1.3.exe`<br>`LumoCast-1.1.3-portable.exe` | 接收端。Win 10/11 x64 |
+| **Linux** | `LumoCast-1.1.3.AppImage`<br>`lumocast_1.1.3_amd64.deb` | 接收端。AppImage 免安装（`chmod +x` 后直接运行）。glibc 2.31+ |
+| **macOS** | `LumoCast-1.1.3-arm64-mac.zip`<br>`LumoCast-1.1.3-x64-mac.zip` | 接收端。解压后把 .app 拖进「应用程序」。Apple Silicon / Intel |
 
 > 手机端「发送」功能需要 Android（系统级录屏权限所在平台仅 Android 允许第三方直接捕获屏幕）。
 > 其它平台的 LumoCast 是**接收端**，功能完整、免费。
@@ -75,19 +75,20 @@ LumoCast 把 **A 手机** 变成「信号源」（主机），把 **同一 Wi-Fi
 - **秒开**：开机即广播，接收端 2 秒内完成发现，握手到出画面 &lt; 400ms
 - **断线自愈**：Wi-Fi 抖动后自动重连，不退出画面
 - 全屏 / 等比 / 1:1 原始像素、镜像翻转、旋转锁定、画面裁切
-- 电池 & 温度守护：发送端过热自动降帧并提示
+- 电池 & 温度守护：发送端过热自动降码率、降输出帧率并提示（Android 10+ 读取系统热状态）
 - **实时延迟显示**：HUD 显示的是真实端到端（编码+网络+解码），不是 ping
 
 ### 连接与安全
 - **局域网直连**，视频流永不离开本地网络（无中继、无云、无数据采集）
-- **4 位 PIN + 设备指纹绑定**：首次配对后 7 天内免 PIN，可随时在设置里吊销
+- **4 位 PIN + 配对令牌**：首次输入 PIN 后 7 天内免 PIN（令牌安全随机、持久化、过期失效），可随时在设置里吊销
 - **一次性二维码**：扫码即连，避免输 IP
 - 每会话独立的 `session id`，主机随时可「踢出所有观看者」
 
 ### 进阶
-- **触摸回控**：在接收端直接操作发送端手机
+- **触摸回控（可选，安卓接收端）**：直接点击/滑动发送端手机，支持返回 / 主页 / 最近任务。
+  需要主机在设置里打开开关并在系统「无障碍」中启用 LumoCast；未启用时主机不广播 `touch` 能力，接收端也不会显示回控 UI
 - 多观看者同时观看（最多 5 台）
-- 录制为 MP4、静态截图、低码率省电模式
+- 录制为 MP4
 - 无障碍：超大按钮、TalkBack 全语音标注、深色/浅色/跟随系统
 
 ---

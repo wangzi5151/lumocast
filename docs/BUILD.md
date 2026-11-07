@@ -13,6 +13,7 @@
 
 ```bash
 cd android
+./gradlew :app:testDebugUnitTest      # 纯 JVM 单元测试（协议 / 握手 / 配对令牌 / 热策略）
 ./gradlew :app:assembleDebug          # 本地调试，可直接 adb install
 ./gradlew :app:assembleRelease        # 未签名（无 keystore 时）
 ./gradlew :app:bundleRelease          # AAB，上架 Google Play 用
@@ -35,7 +36,7 @@ keyPassword=***
 ```
 
 CI 里用 secrets：`ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD` / `ANDROID_KEY_ALIAS` / `ANDROID_KEY_PASSWORD`。
-见 `.github/workflows/android.yml`。
+见 `.github/workflows/ci.yml` 与 `.github/workflows/release.yml`。
 
 ### 上架清单（Google Play）
 
@@ -109,11 +110,12 @@ npm start
 # 1. 改 android/app/build.gradle.kts 的 versionCode/versionName 与 desktop/package.json 的 version
 # 2. 更新 CHANGELOG.md
 # 3. 打 tag 触发 CI
-git tag v1.0.0 && git push origin v1.0.0
+git tag v1.1.3 && git push origin v1.1.3
 ```
 
-`release.yml` 会在 tag 上并行跑：Android APK（签名）、Linux/Windows/macOS 安装包、
-把全部产物 + `checksums.txt` 附到 GitHub Release，并把 release notes 从 CHANGELOG 里截出来。
+`release.yml` 会在 tag 上并行跑：Android 单元测试 + APK（签名）、Linux/Windows/macOS 安装包。
+**只有四个平台的 job 全部成功**才创建 GitHub Release（附全部产物 + `checksums.txt`）；
+任一平台失败都不发布，避免出现缺件安装包。
 
 ## 7. 常见问题
 

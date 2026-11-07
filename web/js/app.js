@@ -124,10 +124,30 @@ function renderDevices() {
   }
 }
 
+function pairKey(ip, port) {
+  return `lumo.pair.${ip}:${port}`;
+}
+
+function loadPair(ip, port) {
+  try {
+    return localStorage.getItem(pairKey(ip, port)) || '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function savePair(ip, port, token) {
+  try {
+    if (token) localStorage.setItem(pairKey(ip, port), token);
+    else localStorage.removeItem(pairKey(ip, port));
+  } catch (_) {}
+}
+
 function pickDevice(d) {
   state.pendingDevice = d;
   state.host = { ip: d.ip, port: d.port, name: d.name };
-  if (d.pin) {
+  // 有 7 天配对令牌就先直接握手；令牌过期时主机回 bad_pin，再弹 PIN。
+  if (d.pin && !loadPair(d.ip, d.port)) {
     el('pin-sub').textContent = `在「${d.name}」的屏幕上可以看到 4 位数字`;
     el('pin-input').value = '';
     el('pin-modal').classList.remove('hidden');
@@ -154,7 +174,7 @@ function connect(ip, port, pin) {
   el('btn-retry').classList.add('hidden');
   showScreen('player');
 
-  bridge.connect({ ip, port, pin });
+  bridge.connect({ ip, port, pin, pair: loadPair(ip, port) });
 }
 
 function handleStreamEvent(ev) {
@@ -164,6 +184,7 @@ function handleStreamEvent(ev) {
     state.connecting = false;
     state.connected = true;
     state.host.name = ev.name || state.host.name;
+    if (ev.pair) savePair(state.host.ip, state.host.port, ev.pair);
     el('host-name').textContent = state.host.name;
     el('player-overlay').classList.add('hidden');
     el('watermark').classList.toggle('hidden', !ev.free);

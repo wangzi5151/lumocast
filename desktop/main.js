@@ -210,7 +210,7 @@ function disconnect() {
   }
 }
 
-ipcMain.on('connect', (_evt, { ip, port, pin }) => {
+ipcMain.on('connect', (_evt, { ip, port, pin, pair }) => {
   disconnect();
   const socket = new tcp.Socket();
   tcpSocket = socket;
@@ -226,6 +226,7 @@ ipcMain.on('connect', (_evt, { ip, port, pin }) => {
       role: 'viewer',
       device: `LumoCast Desktop (${process.platform})`,
       pin: pin || '',
+      pair: pair || '',
     });
     socket.write(hello + '\n');
   });
@@ -266,6 +267,7 @@ ipcMain.on('connect', (_evt, { ip, port, pin }) => {
         pinRequired: !!obj.pin_required,
         name: obj.name,
         cap: obj.cap || [],
+        pair: obj.pair || '',
       });
       if (rest.length) send('stream', { kind: 'data', bytes: new Uint8Array(rest) });
       return;

@@ -1,5 +1,7 @@
 package com.lumocast.ui
 
+import android.content.Intent
+import android.provider.Settings as AndroidSettings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,6 +41,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.lumocast.data.Prefs
+import com.lumocast.service.InputService
 import com.lumocast.ui.components.GlassCard
 import com.lumocast.ui.components.GradientButton
 import com.lumocast.ui.components.Pill
@@ -58,11 +61,14 @@ fun SettingsScreen(onBack: () -> Unit) {
     var pinEnabled by remember { mutableStateOf(prefs.pinEnabled) }
     var maxFps by remember { mutableStateOf(prefs.maxFps) }
     var maxShort by remember { mutableStateOf(prefs.maxShortSide) }
+    var remoteControl by remember { mutableStateOf(prefs.remoteControlEnabled) }
+    var accessibilityReady by remember { mutableStateOf(InputService.isReady(context)) }
+    var pairCount by remember { mutableStateOf(prefs.pairTokenCount()) }
     var diagnosticHint by remember { mutableStateOf("连不上时复制这个") }
     val hostState by com.lumocast.data.LiveSession.host.collectAsState()
 
     fun buildDiagnostic(): String = buildString {
-        append("LumoCast 1.1.2  Android ").append(android.os.Build.VERSION.SDK_INT)
+        append("LumoCast 1.1.3  Android ").append(android.os.Build.VERSION.SDK_INT)
         append("  (").append(android.os.Build.MANUFACTURER).append(' ')
         append(android.os.Build.MODEL).append(")\n")
         append("共享: running=").append(hostState.running)
@@ -129,6 +135,81 @@ fun SettingsScreen(onBack: () -> Unit) {
                     })
             }
 
+            Spacer(Modifier.height(14.dp))
+            SettingRow(
+                "允许触摸回控",
+                "需在系统「无障碍」里启用 LumoCast，接收端才会显示回控；默认关闭"
+            ) {
+                Switch(
+                    checked = remoteControl,
+                    onCheckedChange = { on ->
+                        remoteControl = on
+                        prefs.remoteControlEnabled = on
+                        if (on) {
+                            accessibilityReady = InputService.isReady(context)
+                            if (!accessibilityReady) {
+                                try {
+                                    context.startActivity(
+                                        Intent(AndroidSettings.ACTION_ACCESSIBILITY_SETTINGS)
+                                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    )
+                                } catch (_: Throwable) {
+                                }
+                            }
+                        }
+                    }
+                )
+            }
+            if (remoteControl) {
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (accessibilityReady) "无障碍服务：已开启" else "无障碍服务：未开启，回控不会生效",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (accessibilityReady) LumoMint else LumoRed,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        "打开设置",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = LumoViolet,
+                        modifier = Modifier.clickable {
+                            try {
+                                context.startActivity(
+                                    Intent(AndroidSettings.ACTION_ACCESSIBILITY_SETTINGS)
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            } catch (_: Throwable) {
+                            }
+                        }
+                    )
+                }
+                Text(
+                    "从系统设置返回后点这里重新检测",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = LumoViolet,
+                    modifier = Modifier
+                        .padding(top = 6.dp)
+                        .clickable { accessibilityReady = InputService.isReady(context) }
+                )
+            }
+
+            Spacer(Modifier.height(14.dp))
+            SettingRow(
+                "免 PIN 配对令牌",
+                if (pairCount > 0) "$pairCount 台设备 · 7 天内有效" else "暂无已配对设备"
+            ) {
+                Text(
+                    "吊销全部",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (pairCount > 0) LumoRed else Lumo.Subtle,
+                    modifier = Modifier.clickable(enabled = pairCount > 0) {
+                        prefs.revokeAllPairTokens()
+                        pairCount = 0
+                    }
+                )
+            }
+
             Spacer(Modifier.height(16.dp))
             Text("最高帧率", style = MaterialTheme.typography.titleSmall)
             Spacer(Modifier.height(8.dp))
@@ -178,7 +259,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         GlassCard {
             LinkRow("隐私政策") { uriHandler.openUri("https://github.com/wangzi5151/lumocast/blob/main/docs/PRIVACY.md") }
             LinkRow("源码与许可证") { uriHandler.openUri("https://github.com/wangzi5151/lumocast") }
-            LinkRow("版本", "1.1.2 (4)") {}
+            LinkRow("版本", "1.1.3 (5)") {}
             LinkRow("复制诊断信息", diagnosticHint) {
                 val clip = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
                     as android.content.ClipboardManager

@@ -36,7 +36,7 @@ Status: **stable** · Applies to Android / iOS / Desktop / any third-party recei
   "w": 1080,
   "h": 2400,
   "fps": 30,
-  "cap": ["h264", "touch"],
+  "cap": ["h264", "audio", "av", "record", "touch"],
   "nonce": "9f3a1c"
 }
 ```
@@ -45,7 +45,7 @@ Status: **stable** · Applies to Android / iOS / Desktop / any third-party recei
 | --- | --- |
 | `name` | 人类可读设备名，接收端用于列表展示 |
 | `pin` | 是否要求 4 位 PIN（已配对设备可免） |
-| `cap` | 能力列表：`h264`、`touch`、`record`、`multi` |
+| `cap` | 能力列表：`h264`、`audio`、`av`、`record`；只有主机已打开回控开关且无障碍服务就绪时才包含 `touch` |
 | `nonce` | 每次会话变化；接收端用它去重与判断「主机是否重启过」 |
 
 **PROBE**（接收端 → 广播，可选）
@@ -76,7 +76,7 @@ Status: **stable** · Applies to Android / iOS / Desktop / any third-party recei
 | --- | --- | --- |
 | `device` | ✅ | 接收端展示名，主机用于「谁在看」列表 |
 | `pin` | 视主机 | 4 位数字；主机 `pin=false` 时忽略 |
-| `pair` | 否 | 上次会话拿到的 `pair` token，可免 PIN（有效期 7 天） |
+| `pair` | 否 | 上次会话拿到的 `pair` token。主机校验有效且未过期时免 PIN；无效/过期就回退到 `pin` 校验（见 §2.5） |
 
 2. 主机回一行 JSON + `\n`：
 
@@ -84,7 +84,8 @@ Status: **stable** · Applies to Android / iOS / Desktop / any third-party recei
 { "t": "welcome", "v": 1, "sid": "7b1e0c4a9d2f5583",
   "w": 1080, "h": 2400, "fps": 30, "codec": "avc",
   "pin_required": true, "name": "Pixel 8 Pro",
-  "pair": "aK9fZm…", "max_fps": 60, "cap": ["h264", "touch"] }
+  "pair": "aK9fZm…", "max_fps": 60,
+  "cap": ["h264", "audio", "av", "record", "touch"] }
 ```
 
 失败时：
@@ -195,8 +196,8 @@ offset   = host_ms + rtt/2 - localRecvMs      // hostClock ≈ localClock + offs
 | --- | --- | --- |
 | `kf` | — | 立刻产生 IDR（接收端检测到花屏/首帧时发） |
 | `q` | `br`(bps) `fps` | 请求码率/帧率（主机可拒绝，例如过热时限制） |
-| `in` | `e`:`down`/`move`/`up`/`cancel`, `x`,`y` ∈[0,1] | 触摸回控（需 `cap` 含 `touch`） |
-| `key` | `code`,`down` | 物理键回控：`back` / `home` / `recents` |
+| `in` | `e`:`down`/`move`/`up`/`cancel`, `x`,`y` ∈[0,1] | 触摸回控（仅当 `cap` 含 `touch`；坐标相对视频画面归一化） |
+| `key` | `code`,`down` | 全局键回控：`back` / `home` / `recents`（同样要求 `cap` 含 `touch`） |
 | `stat` | `recv`,`drop`,`rtt`,`dec_ms` | 每秒一次，主机据此做码率自适应 |
 | `bye` | — | 主动断开，主机释放会话 |
 
@@ -207,6 +208,23 @@ offset   = host_ms + rtt/2 - localRecvMs      // hostClock ≈ localClock + offs
 | `stat` | `br`,`fps`,`enc_ms`,`batt`,`therm` | 每秒一次，接收端 UI 显示 |
 | `rotate` | `w`,`h`,`rot` | 设备旋转，需重建解码器（接收端应丢弃旧 CSD 并等新 CONFIG） |
 | `end` | `reason` | `user_stop` / `timeout` / `thermal` / `battery` |
+
+### 2.5 配对令牌（免 PIN）
+
+`pair` 是主机签发的**不透明字符串**，客户端不应解析。规则：
+
+1. 首次用正确 PIN 握手成功后，主机在 `welcome.pair` 下发一个新令牌；
+2. 客户端按主机（`ip:port`）持久化，下一次 `hello` 带回；
+3. 令牌自签发起 **7 天**有效，过期后主机忽略它并回退到 PIN 校验；
+4. 用户在主机设置里可以「吊销全部配对令牌」，立即失效；
+5. 主机只保存 `令牌 → 过期时间`，从不保存 PIN 明文（PIN 本身也只存在本机 `Prefs`）；
+6. 令牌校验使用常量时间比较；令牌是 256-bit `SecureRandom`，不可预测。
+
+实现参考：`android/.../core/net/PairTokens.kt`、`Prefs.kt`。Android / Web / 桌面 / iOS
+客户端都会保存并在下次连接时发送；令牌无效时客户端会重新提示输入 PIN。
+
+> 令牌和视频流一样在局域网内**明文传输**。它能防止同 Wi-Fi 的人反复猜 PIN，
+> 不提供端到端加密；安全边界仍是「你信任当前 Wi-Fi」。
 
 ---
 
@@ -254,10 +272,10 @@ apply every 2s, hysteresis: only change if |Δ| > 15%
 
 | 威胁 | 缓解 |
 | --- | --- |
-| 同 Wi-Fi 的陌生人偷看 | 4 位 PIN（60s 内最多 5 次尝试，之后 5 分钟冷却）+ 主机端「新的观看请求」提示 |
+| 同 Wi-Fi 的陌生人偷看 | 4 位 PIN（5 分钟内最多 5 次尝试）+ 7 天配对令牌（可吊销、常量时间校验） |
 | 中间人窃听 | v1 为明文 TCP，**安全边界 = 你信任你家/公司 Wi-Fi**。v2 计划：X25519 + ChaCha20-Poly1305（`cap` 里加 `e2ee`），PIN 参与 PSK |
-| PIN 暴力破解 | 指数退避 + 失败记录写进 `Prefs`，主机会在通知栏提示 |
-| 拒绝服务 | 单机最多 8 个 TCP 连接，超过即拒绝；单帧上限 4 MiB |
+| PIN 暴力破解 | 按来源 IP 记录 5 分钟窗口，最多 5 次失败；超过后拒绝新尝试直到窗口滑出 |
+| 拒绝服务 | 同时观看上限 5 台（超限回 `busy`）；握手 10s 超时；单帧上限 4 MiB |
 
 > **对外宣传口径必须诚实**：LumoCast v1 是「局域网内明文传输 + PIN 防误连」，
 > 不是端到端加密产品。E2EE 在 v2 路线图上（`docs/ROADMAP.md`）。
@@ -276,8 +294,8 @@ apply every 2s, hysteresis: only change if |Δ| > 15%
 
 | 语言 | 文件 | 行数（约） |
 | --- | --- | --- |
-| Kotlin（主机） | `android/.../core/net/HostServer.kt` | 260 |
-| Kotlin（接收） | `android/.../core/net/ViewerClient.kt` | 180 |
+| Kotlin（主机） | `android/.../core/net/HostServer.kt` | 300 |
+| Kotlin（接收） | `android/.../core/net/ViewerClient.kt` | 190 |
 | JS（接收） | `web/js/protocol.js` + `web/js/decoder.js` | 300 |
 | Swift（接收） | `ios/LumoCast/StreamClient.swift` | 240 |
 

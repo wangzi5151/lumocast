@@ -46,7 +46,11 @@ class ViewerController(
     private val ip: String,
     private val port: Int,
     private val pin: String?,
-    private val deviceName: String
+    private val deviceName: String,
+    /** 上次连接时主机签发的配对令牌，用于 7 天内免 PIN。 */
+    private val pairToken: String? = null,
+    /** 主机在 welcome 里下发了新令牌时回调，由 UI 层持久化。 */
+    private val onPairToken: (String) -> Unit = {}
 ) {
     var state by mutableStateOf(ViewerUiState())
         private set
@@ -140,6 +144,7 @@ class ViewerController(
             deviceName = deviceName,
             listener = object : ViewerClient.Listener {
                 override fun onWelcome(welcome: ViewerClient.Welcome) {
+                    welcome.pairToken?.let(onPairToken)
                     state = state.copy(
                         phase = ViewerUiState.Phase.LIVE,
                         width = welcome.width,
@@ -221,7 +226,8 @@ class ViewerController(
                         append("  码率=").append("%.1f".format(state.mbps)).append("Mbps")
                     }
                 }
-            }
+            },
+            pairToken = pairToken
         )
         client = c
         c.connect()

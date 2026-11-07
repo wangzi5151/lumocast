@@ -38,6 +38,10 @@
     <string name="settings_about">关于</string>
     <string name="settings_privacy">隐私政策</string>
 
+    <!-- 触摸回控（可选无障碍服务） -->
+    <string name="accessibility_label">LumoCast 触摸回控</string>
+    <string name="accessibility_description">允许经 PIN / 配对令牌认证的观看设备点击、滑动本机屏幕，并执行返回 / 主页 / 最近任务。仅在你主动开启时生效，不读取窗口内容。</string>
+
     <string name="pro_title">升级 LumoCast Pro</string>
     <string name="pro_sub">1080p60 · 触摸回控 · 录制 · 无水印</string>
     <string name="pro_yearly">年付 ¥48</string>

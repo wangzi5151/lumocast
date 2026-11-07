@@ -20,8 +20,8 @@ android {
         applicationId = "com.lumocast"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.1.2"
+        versionCode = 5
+        versionName = "1.1.3"
         resourceConfigurations += listOf("en", "zh")
         vectorDrawables.useSupportLibrary = true
     }
@@ -86,4 +86,8 @@ dependencies {
     implementation(libs.zxing.core)
     implementation(libs.kotlinx.coroutines.android)
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    // 纯 JVM 单元测试：协议 / 握手 / 配对令牌 / 热策略
+    testImplementation(libs.junit)
+    testImplementation(libs.org.json)
 }

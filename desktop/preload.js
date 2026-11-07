@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld('lumo', {
 
   refreshDevices: () => ipcRenderer.send('refresh'),
 
-  connect: ({ ip, port, pin }) => ipcRenderer.send('connect', { ip, port, pin }),
+  connect: ({ ip, port, pin, pair }) => ipcRenderer.send('connect', { ip, port, pin, pair }),
 
   onStream: (cb) => {
     const handler = (_e, ev) => cb(ev);

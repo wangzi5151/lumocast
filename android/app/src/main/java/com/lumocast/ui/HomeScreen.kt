@@ -270,10 +270,12 @@ fun HomeScreen(
         } else {
             items(devices, key = { it.key }) { device ->
                 DeviceRow(device) {
-                    if (device.pinRequired) {
+                    val hasPair = !prefs.viewerPairToken("${device.ip}:${device.port}").isNullOrBlank()
+                    if (device.pinRequired && !hasPair) {
                         pendingDevice = device
                         pinError = null
                     } else {
+                        // 有配对令牌就先直接握手；令牌过期时观看页会提示输入 PIN。
                         onOpenViewer(device.ip, device.port, null, device.name)
                     }
                 }

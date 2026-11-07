@@ -33,10 +33,12 @@ final class PlayerModel: ObservableObject {
 
     private let lateThresholdMs: Double = 150
     private var audioReady = false
+    private var hostKey = ""
 
     func start(ip: String, port: UInt16, pin: String?) {
         guard !isRunning else { return }
         isRunning = true
+        hostKey = "\(ip):\(port)"
         client.onEvent = { [weak self] event in
             DispatchQueue.main.async { self?.handle(event) }
         }
@@ -119,6 +121,10 @@ final class PlayerModel: ObservableObject {
         case .closed(let reason):
             phase = .failed
             errorText = reason
+            if reason.contains("PIN") {
+                // 配对令牌过期/被吊销：清掉本地缓存，下一次点设备时会重新弹 PIN
+                UserDefaults.standard.removeObject(forKey: "lumo.pair.\(hostKey)")
+            }
         }
     }
 
@@ -262,7 +268,9 @@ struct ContentView: View {
 
     private func tap(_ device: DiscoveredDevice) {
         pin = ""
-        if device.pinRequired {
+        let key = "lumo.pair.\(device.ip):\(device.port)"
+        let hasPair = !(UserDefaults.standard.string(forKey: key) ?? "").isEmpty
+        if device.pinRequired && !hasPair {
             pendingDevice = device
         } else {
             activePin = ""

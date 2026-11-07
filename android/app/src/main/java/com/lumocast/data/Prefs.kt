@@ -2,6 +2,7 @@ package com.lumocast.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.lumocast.core.net.PairTokens
 
 /**
  * 极简设置存储。刻意不用 DataStore：这里只有 8 个键、读写同步，
@@ -38,6 +39,70 @@ class Prefs private constructor(private val sp: SharedPreferences) {
         get() = sp.getBoolean(KEY_RECORD, false)
         set(v) = sp.edit().putBoolean(KEY_RECORD, v).apply()
 
+    /** 是否允许观看端触摸回控；还需要系统无障碍服务实际开启。默认关闭。 */
+    var remoteControlEnabled: Boolean
+        get() = sp.getBoolean(KEY_REMOTE_CONTROL, false)
+        set(v) = sp.edit().putBoolean(KEY_REMOTE_CONTROL, v).apply()
+
+    // ---------------------------------------------------------- 主机：配对令牌
+
+    /** 校验观看端带来的 token；过期条目顺手清理并写回。 */
+    fun validatePairToken(token: String, now: Long = System.currentTimeMillis()): Boolean {
+        if (token.isBlank()) return false
+        synchronized(pairLock) {
+            val map = PairTokens.parse(sp.getString(KEY_PAIR_TOKENS, null))
+            PairTokens.prune(map, now)
+            val ok = PairTokens.isValid(map, token, now)
+            sp.edit().putString(KEY_PAIR_TOKENS, PairTokens.serialize(map)).apply()
+            return ok
+        }
+    }
+
+    /** PIN 验证通过后签发一个新 token（7 天），返回给观看端保存。 */
+    fun issuePairToken(now: Long = System.currentTimeMillis()): String {
+        synchronized(pairLock) {
+            val map = PairTokens.parse(sp.getString(KEY_PAIR_TOKENS, null))
+            val token = PairTokens.issue(map, now = now)
+            sp.edit().putString(KEY_PAIR_TOKENS, PairTokens.serialize(map)).apply()
+            return token
+        }
+    }
+
+    fun revokeAllPairTokens() {
+        synchronized(pairLock) {
+            sp.edit().remove(KEY_PAIR_TOKENS).apply()
+        }
+    }
+
+    fun pairTokenCount(now: Long = System.currentTimeMillis()): Int {
+        synchronized(pairLock) {
+            val map = PairTokens.parse(sp.getString(KEY_PAIR_TOKENS, null))
+            PairTokens.prune(map, now)
+            return map.size
+        }
+    }
+
+    // ---------------------------------------------------------- 观看端：记住上次配对令牌
+
+    fun viewerPairToken(hostKey: String): String? {
+        if (sp.getString(KEY_VIEWER_PAIR_HOST, null) != hostKey) return null
+        return sp.getString(KEY_VIEWER_PAIR_TOKEN, null)
+    }
+
+    fun setViewerPairToken(hostKey: String, token: String?) {
+        if (token.isNullOrBlank()) {
+            sp.edit()
+                .remove(KEY_VIEWER_PAIR_TOKEN)
+                .remove(KEY_VIEWER_PAIR_HOST)
+                .apply()
+        } else {
+            sp.edit()
+                .putString(KEY_VIEWER_PAIR_TOKEN, token)
+                .putString(KEY_VIEWER_PAIR_HOST, hostKey)
+                .apply()
+        }
+    }
+
     private fun defaultName(): String =
         "Android " + (android.os.Build.MODEL ?: "").take(18).ifBlank { "device" }
 
@@ -51,6 +116,12 @@ class Prefs private constructor(private val sp: SharedPreferences) {
         private const val KEY_MAX_SHORT = "max_short_side"
         private const val KEY_LAST_HOST = "last_host"
         private const val KEY_RECORD = "record_enabled"
+        private const val KEY_REMOTE_CONTROL = "remote_control_enabled"
+        private const val KEY_PAIR_TOKENS = "pair_tokens"
+        private const val KEY_VIEWER_PAIR_TOKEN = "viewer_pair_token"
+        private const val KEY_VIEWER_PAIR_HOST = "viewer_pair_host"
+
+        private val pairLock = Any()
 
         @Volatile private var instance: Prefs? = null
 

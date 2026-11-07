@@ -40,7 +40,13 @@ class HostServer(
     private val onLog: (String) -> Unit = {},
     private val onNeedKeyFrame: () -> Unit = {},
     private val onTouch: (action: Int, x: Float, y: Float) -> Unit = { _, _, _ -> },
-    private val onKey: (String) -> Unit = {}
+    private val onKey: (String) -> Unit = {},
+    /** 只有主机开关打开且无障碍服务就绪时才广播 touch 能力；否则接收端不显示回控 UI。 */
+    private val allowTouch: Boolean = false,
+    /** 校验观看端带来的 7 天配对令牌。 */
+    private val verifyPairToken: (String) -> Boolean = { false },
+    /** PIN 验证通过后签发新令牌；返回 null 表示不启用免 PIN。 */
+    private val issuePairToken: () -> String? = { null }
 ) {
 
     data class ViewerInfo(
@@ -200,30 +206,17 @@ class HostServer(
                 socket.close()
                 return
             }
-            val hello = try {
-                JSONObject(line)
-            } catch (e: Exception) {
-                reject(socket, "unsupported", "握手格式错误")
+            val hello = Handshake.parseHello(line)
+            val decision = Handshake.authorize(
+                hello = hello,
+                pinRequired = pinRequired,
+                verifyPin = { checkPin(ip, it) },
+                verifyPair = verifyPairToken
+            )
+            if (!decision.accepted) {
+                reject(socket, decision.code, decision.message)
+                if (decision.code == "bad_pin") onLog("bad pin from $ip")
                 return
-            }
-            if (hello.optString("t") != "hello") {
-                reject(socket, "unsupported", "期望 hello")
-                return
-            }
-            val protoV = hello.optInt("v", 1)
-            if (protoV > Proto.VERSION) {
-                reject(socket, "unsupported", "对方协议版本过高，请升级 LumoCast")
-                return
-            }
-
-            // ---- PIN
-            if (pinRequired) {
-                val provided = hello.optString("pin", "")
-                if (!checkPin(ip, provided)) {
-                    reject(socket, "bad_pin", "PIN 不正确")
-                    onLog("bad pin from $ip")
-                    return
-                }
             }
 
             // ---- 容量
@@ -232,11 +225,24 @@ class HostServer(
                 return
             }
 
-            val viewerName = hello.optString("device", "Unknown").take(48)
+            val viewerName = hello?.device ?: "Unknown"
+            // PIN 首次验证成功才签发新令牌；用旧令牌进来则原样续用，不延长 7 天有效期。
+            val pairToken = when {
+                decision.viaPair -> hello?.pairToken
+                pinRequired -> issuePairToken()
+                else -> null
+            }
             val sid = java.lang.Long.toHexString(System.nanoTime() xor (Math.random() * 1e9).toLong())
             // BufferedOutputStream：把「16 字节头 + 负载」合并成一次 write 系统调用
             val writer = PacketWriter(java.io.BufferedOutputStream(socket.getOutputStream(), 128 * 1024))
 
+            val caps = buildList {
+                add("h264")
+                add("audio")
+                add("av")
+                add("record")
+                if (allowTouch) add("touch")
+            }
             writeHandshakeLine(
                 socket.getOutputStream(),
                 buildString {
@@ -248,8 +254,11 @@ class HostServer(
                     append(",\"codec\":\"avc\"")
                     append(",\"pin_required\":").append(pinRequired)
                     append(",\"name\":").append(JSONObject.quote(deviceName))
-                    append(",\"cap\":[\"h264\",\"audio\",\"av\"")
-                    append(",\"touch\",\"record\",\"hd\"")
+                    if (pairToken != null) {
+                        append(",\"pair\":").append(JSONObject.quote(pairToken))
+                    }
+                    append(",\"cap\":[")
+                    append(caps.joinToString(",") { JSONObject.quote(it) })
                     append("]}")
                 }
             )
@@ -416,8 +425,11 @@ class HostServer(
                 }
 
                 "in" -> {
-                    val x = o.optDouble("x", 0.0).toFloat()
-                    val y = o.optDouble("y", 0.0).toFloat()
+                    // 未启用回控（设置关闭或无障碍未就绪）时静默忽略：
+                    // cap 里没有 touch，正规客户端本来就不会发。
+                    if (!allowTouch) return
+                    val x = o.optDouble("x", 0.0).toFloat().coerceIn(0f, 1f)
+                    val y = o.optDouble("y", 0.0).toFloat().coerceIn(0f, 1f)
                     val action = when (o.optString("e")) {
                         "down" -> 0
                         "move" -> 1
@@ -427,7 +439,7 @@ class HostServer(
                     onTouch(action, x, y)
                 }
 
-                "key" -> onKey(o.optString("code"))
+                "key" -> if (allowTouch) onKey(o.optString("code"))
                 "bye" -> close("bye")
             }
         }

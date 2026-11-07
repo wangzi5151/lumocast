@@ -38,10 +38,14 @@ final class StreamClient {
     private var pingSeq: UInt32 = 1
     private var offset: Double?
     private var lastRTT: Int = 0
+    private var pairToken: String?
+    private var pairHostKey: String = ""
 
     private(set) var hostOffsetMs: Double? { offset }
 
     func connect(ip: String, port: UInt16, pin: String?) {
+        pairHostKey = "\(ip):\(port)"
+        pairToken = UserDefaults.standard.string(forKey: "lumo.pair.\(pairHostKey)")
         let host = NWEndpoint.Host(ip)
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
@@ -84,6 +88,7 @@ final class StreamClient {
             "role": "viewer",
             "device": "LumoCast iOS",
             "pin": pin ?? "",
+            "pair": pairToken ?? "",
         ]
         guard let json = try? JSONSerialization.data(withJSONObject: hello) else { return }
         var line = json
@@ -129,6 +134,10 @@ final class StreamClient {
             guard (obj["t"] as? String) == "welcome" else {
                 onEvent?(.closed("协议错误：期望 welcome"))
                 return
+            }
+            if let issued = obj["pair"] as? String, !issued.isEmpty {
+                pairToken = issued
+                UserDefaults.standard.set(issued, forKey: "lumo.pair.\(pairHostKey)")
             }
             let caps = obj["cap"] as? [String] ?? []
             let welcome = Welcome(

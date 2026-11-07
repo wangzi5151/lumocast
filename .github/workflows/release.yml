@@ -56,6 +56,10 @@ jobs:
           keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
 
+      - name: 单元测试
+        working-directory: android
+        run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
+
       - name: 构建
         working-directory: android
         run: gradle :app:assembleRelease --no-daemon --stacktrace
@@ -100,7 +104,7 @@ jobs:
           path: |
             desktop/release/*.AppImage
             desktop/release/*.deb
-          if-no-files-found: warn
+          if-no-files-found: error
 
   # ---------------------------------------------------------------- Windows
   windows:
@@ -125,7 +129,7 @@ jobs:
         with:
           name: windows-packages
           path: desktop/release/*.exe
-          if-no-files-found: warn
+          if-no-files-found: error
 
   # ---------------------------------------------------------------- macOS
   macos:
@@ -149,14 +153,19 @@ jobs:
         with:
           name: macos-packages
           path: desktop/release/*.zip
-          if-no-files-found: warn
+          if-no-files-found: error
 
   # ---------------------------------------------------------------- 发布
   publish:
     name: 发布 Release
     needs: [android, linux, windows, macos]
     runs-on: ubuntu-latest
-    if: always() && needs.android.result == 'success'
+    # 所有平台都成功才发布；任一平台失败时宁可不发，也不发缺件的 Release。
+    if: >-
+      needs.android.result == 'success' &&
+      needs.linux.result == 'success' &&
+      needs.windows.result == 'success' &&
+      needs.macos.result == 'success'
     steps:
       - uses: actions/checkout@v4
 
@@ -195,9 +204,11 @@ jobs:
             ## 这个版本能做什么
 
             - 安卓手机 → 同局域网任意设备，视频 + 系统音频
-            - 1080p60，Pro 可到 1440p；实测端到端延迟 60–90ms
+            - 1080p60，最高 1440p；实测端到端延迟 60–90ms
             - 音画同步：音频做主时钟，视频落后 150ms 自动丢帧
-            - PIN / 二维码连接，纯局域网，无云端
+            - PIN / 二维码连接 + 7 天配对令牌（可吊销），纯局域网，无云端
+            - 可选触摸回控（需主机开启无障碍服务）；过热自动降码率/降帧
+            - 本次 Release 已包含 Android / Windows / Linux / macOS 全部平台产物
 
             校验和见 `checksums.txt`。
           files: |

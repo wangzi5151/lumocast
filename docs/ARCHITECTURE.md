@@ -82,12 +82,12 @@ UI：宽高比适配、旋转、镜像、HUD（延迟/码率/FPS）
 | 线程 | 职责 | 禁止 |
 | --- | --- | --- |
 | Main | Compose、通知 | 任何 IO |
-| `EncoderLooper` | `MediaCodec` drain loop（固定 8ms 轮询） | 加锁等网络 |
+| `EncoderLooper` | `MediaCodec` drain loop（固定 4ms 轮询） | 加锁等网络 |
 | `SendThread` | 单写者，独占 socket 输出流 | 解码 |
 | `AcceptThread` | 接受连接、握手 | 转发视频 |
 | `TxThread` ×N | 每观看者一个，从环形队列取帧写 socket | 阻塞采集 |
 
-帧队列：每个观看者一个 **`ArrayBlockingQueue(2)`**，`offer()` 失败即 `poll()` 再 `offer()` —— 这就是「丢旧帧」。
+帧队列：每个观看者一个 **`ArrayBlockingQueue(3)`**，`offer()` 失败时优先淘汰最旧的 delta 视频帧 —— 音频最后才丢。
 
 ## 6. 失败模式
 
@@ -96,7 +96,7 @@ UI：宽高比适配、旋转、镜像、HUD（延迟/码率/FPS）
 | 列表里搜不到设备 | 路由器开了 AP 隔离 / 客机网络 | UI 直接提示「可能是路由器隔离，请用二维码连接」并提供手输 IP |
 | 连上黑屏 3s | 首帧 IDR 丢了 | 接收端 1.5s 无帧 → 发 `kf`，2 次失败 → 重连 |
 | 画面糊 | 码率被自适应压低 | HUD 显示码率；可在设置里固定画质上限 |
-| 发热掉帧 | 长时 1080p60 | 温度 > 42℃ 降 30fps 并提示，> 45℃ 建议停止 |
+| 发热掉帧 | 长时 1080p60 | 读取 Android 10+ 系统热状态：偏热降码率/降帧，严重时降到半帧率，临界时停止共享并提示 |
 | 息屏断流 | `MediaProjection` 被系统回收 | 前台服务 + `stopWithTask=false`，并在通知里「续播」按钮 |
 
 ---

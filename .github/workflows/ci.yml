@@ -57,6 +57,10 @@ jobs:
           gradle-version: '8.7'
           cache-read-only: false
 
+      - name: Kotlin 单元测试（协议 / 握手 / 配对令牌 / 热策略）
+        working-directory: android
+        run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
+
       - name: 构建 release APK
         working-directory: android
         run: gradle :app:assembleRelease --no-daemon --stacktrace

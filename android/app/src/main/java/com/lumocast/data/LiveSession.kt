@@ -25,6 +25,10 @@ data class HostState(
     val width: Int = 1080,
     val height: Int = 1920,
     val audio: Boolean = false,
+    /** 系统热状态（PowerManager.THERMAL_STATUS_*）；<29 的设备始终 0。 */
+    val thermalLevel: Int = 0,
+    /** 过热时给用户看的说明；正常时为 null。 */
+    val thermalNote: String? = null,
     val error: String? = null
 )
 
